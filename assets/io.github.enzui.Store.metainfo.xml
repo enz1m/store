@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.enzui.Store</id>
+  <name>Store</name>
+  <summary>Browse and install Flatpak applications</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <developer id="io.github.enzui">
+    <name>enzUI contributors</name>
+  </developer>
+  <description>
+    <p>Discover, install and update desktop applications from Flathub. Browse
+       featured applications and categories, search the catalog, and inspect
+       screenshots, permissions and release information.</p>
+    <p>Store reads user and system Flatpak installations. User installations
+       can be managed directly; system repositories remain host-managed.
+       On enzimOS, the permission service reviews installation requests when
+       available. Other desktops use Flatpak directly.</p>
+    <p>Flatpak is required for repository and installation operations.
+       Catalog metadata and artwork need network access; previously cached
+       information remains available offline.</p>
+  </description>
+  <launchable type="desktop-id">io.github.enzui.Store.desktop</launchable>
+  <provides>
+    <binary>store-app</binary>
+  </provides>
+  <categories>
+    <category>Settings</category>
+    <category>PackageManager</category>
+  </categories>
+  <icon type="stock">io.github.enzui.Store</icon>
+  <content_rating type="oars-1.1"/>
+</component>

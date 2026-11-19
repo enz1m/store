@@ -1,0 +1,90 @@
+[package]
+repository = "https://github.com/enz1m/store"
+name = "enzimos-store"
+version = "0.1.0"
+authors = ["enzUI contributors"]
+edition = "2024"
+publish = false
+license = "MIT"
+description = "Browse, install, update, and manage Flatpak applications"
+rust-version = "1.95"
+
+[workspace]
+resolver = "3"
+
+[features]
+x11 = ["iced/x11", "enzui-widgets/x11"]
+center = ["dep:enzui-agent"]
+
+
+[dependencies]
+enzui-activity = { features = ["operation-center"], git = "https://github.com/enz1m/enzui.git", rev = "d728f9965b0120d776d3f79c05e09c2b9240d7ce" }
+enzui-services = { git = "https://github.com/enz1m/enzui.git", rev = "d728f9965b0120d776d3f79c05e09c2b9240d7ce" }
+iced = { default-features = false, features = ["wgpu", "tiny-skia", "crisp", "web-colors", "thread-pool", "linux-theme-detection", "wayland", "svg", "image", "a11y", "tokio"], git = "https://github.com/enz1m/enzim-iced.git", rev = "7a1d747489d779ad55d341ef9dd91cc250004388" }
+iced_renderer = { default-features = false, git = "https://github.com/enz1m/enzim-iced.git", rev = "7a1d747489d779ad55d341ef9dd91cc250004388" }
+enzui-core = { features = ["accesskit"], git = "https://github.com/enz1m/enzui.git", rev = "d728f9965b0120d776d3f79c05e09c2b9240d7ce" }
+enzui-resources = { git = "https://github.com/enz1m/enzui.git", rev = "d728f9965b0120d776d3f79c05e09c2b9240d7ce" }
+enzui-theme = { git = "https://github.com/enz1m/enzui.git", rev = "d728f9965b0120d776d3f79c05e09c2b9240d7ce" }
+enzui-widgets = { features = ["portal-dbus", "application-dbus"], git = "https://github.com/enz1m/enzui.git", rev = "d728f9965b0120d776d3f79c05e09c2b9240d7ce" }
+enzui-parent-lease = { git = "https://github.com/enz1m/enzui.git", rev = "d728f9965b0120d776d3f79c05e09c2b9240d7ce" }
+enzui-agent = { features = ["iced-consumer"], optional = true, git = "https://github.com/enz1m/enzui.git", rev = "d728f9965b0120d776d3f79c05e09c2b9240d7ce" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rustix = { version = "1.1", features = ["fs", "process"] }
+# Rasterises installed apps' scalable icons; already in the graph through iced's SVG support.
+resvg = { version = "0.45", default-features = false }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+enzui-wayland = { git = "https://github.com/enz1m/enzui.git", rev = "d728f9965b0120d776d3f79c05e09c2b9240d7ce" }
+
+[dev-dependencies]
+iced_test = { git = "https://github.com/enz1m/enzim-iced.git", rev = "7a1d747489d779ad55d341ef9dd91cc250004388" }
+
+[patch.crates-io]
+zbus_macros = { git = "https://github.com/enz1m/enzim-zbus.git", rev = "e182645b56d15e637bb6c8144f99ebfa7f900716" }
+zbus_names = { git = "https://github.com/enz1m/enzim-zbus.git", rev = "e182645b56d15e637bb6c8144f99ebfa7f900716" }
+zvariant = { git = "https://github.com/enz1m/enzim-zbus.git", rev = "e182645b56d15e637bb6c8144f99ebfa7f900716" }
+zvariant_derive = { git = "https://github.com/enz1m/enzim-zbus.git", rev = "e182645b56d15e637bb6c8144f99ebfa7f900716" }
+zvariant_utils = { git = "https://github.com/enz1m/enzim-zbus.git", rev = "e182645b56d15e637bb6c8144f99ebfa7f900716" }
+zbus = { git = "https://github.com/enz1m/enzim-zbus.git", rev = "e182645b56d15e637bb6c8144f99ebfa7f900716" }
+winit = { git = "https://github.com/enz1m/enzim-winit.git", rev = "40eeb41f8637ef1620afa377ba006874224b6d65" }
+
+[[bin]]
+name = "store-app"
+path = "src/main.rs"
+
+[lints.rust]
+unsafe_code = "deny"
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(docsrs)"] }
+missing_docs = "warn"
+unreachable_pub = "warn"
+
+[lints.clippy]
+dbg_macro = "warn"
+todo = "warn"
+unimplemented = "warn"
+mem_forget = "warn"
+undocumented_unsafe_blocks = "warn"
+allow_attributes_without_reason = "warn"
+
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.test]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+opt-level = 2
+debug = 0
+incremental = false
+
+[profile.test.package."*"]
+opt-level = 2
+debug = 0
+incremental = false
+
+[profile.release]
+lto = false
+codegen-units = 16
+debug = 0
+strip = "debuginfo"

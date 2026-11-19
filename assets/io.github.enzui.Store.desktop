@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Name=Store
+Name[es]=Tienda
+Comment=Browse and install Flatpak applications
+Comment[es]=Explorar e instalar aplicaciones Flatpak
+Exec=store-app
+Icon=io.github.enzui.Store
+Terminal=false
+StartupNotify=true
+Categories=Settings;PackageManager;
+Keywords=flatpak;software;install;applications;updates;repositories;
+Keywords[es]=flatpak;software;instalar;aplicaciones;actualizaciones;repositorios;
+StartupWMClass=io.github.enzui.Store

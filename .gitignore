@@ -1,0 +1,14 @@
+/target/
+/AGENTS/
+/AGENTS.md
+/.local/
+/.claude/
+/evidence/
+/shots*/
+/capture.env
+.env
+.env.*
+*.log
+*.profraw
+*.profdata
+__pycache__/

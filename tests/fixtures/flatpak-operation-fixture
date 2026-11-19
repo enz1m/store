@@ -1,0 +1,121 @@
+#!/bin/sh
+set -eu
+
+directory=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+if [ -f "$directory/mode" ]; then
+    mode=$(cat "$directory/mode")
+else
+    # Compatibility with older callers that encoded control data in the last
+    # operand. New tests keep the operand a valid Flatpak application ID.
+    last=""
+    for argument in "$@"; do
+        last=$argument
+    done
+    mode=${last%%:*}
+    directory=${last#*:}
+fi
+
+case "$mode" in
+    args)
+        : > "$directory/args"
+        for argument in "$@"; do
+            printf '%s\n' "$argument" >> "$directory/args"
+        done
+        ;;
+    stderr)
+        (
+            dd if=/dev/zero bs=65536 count=32 2>/dev/null | tr '\000' E >&2
+        ) &
+        writer=$!
+        i=0
+        while [ "$i" -lt 100 ]; do
+            printf 'draining-%s  %s%%\n' "$i" "$i"
+            i=$((i + 1))
+        done
+        wait "$writer"
+        printf 'draining-complete  100%%\n'
+        : > "$directory/done"
+        exit 23
+        ;;
+    short)
+        printf 'ordinary short diagnostic\n' >&2
+        exit 29
+        ;;
+    progress)
+        printf 'step-0  0%%\n'
+        sleep 0.1
+        i=1
+        while [ "$i" -lt 10000 ]; do
+            percent=$((i % 101))
+            printf 'step-%s  %s%%\n' "$i" "$percent"
+            i=$((i + 1))
+        done
+        : > "$directory/done"
+        ;;
+    hold)
+        trap '' TERM
+        printf '%s\n' "$$" > "$directory/leader"
+        sh -c '
+            trap "" TERM
+            printf "%s\n" "$$" > "$1/descendant"
+            i=0
+            while [ "$i" -lt 30 ]; do
+                sleep 0.1
+                i=$((i + 1))
+            done
+        ' fixture-descendant "$directory" &
+        printf 'holding  1%%\n'
+        i=0
+        while [ "$i" -lt 30 ]; do
+            sleep 0.1
+            i=$((i + 1))
+        done
+        ;;
+    capture)
+        stdout_bytes=$(cat "$directory/stdout-bytes")
+        stderr_bytes=$(cat "$directory/stderr-bytes")
+        (head -c "$stderr_bytes" /dev/zero | tr '\000' E >&2) &
+        stderr_writer=$!
+        head -c "$stdout_bytes" /dev/zero | tr '\000' O
+        wait "$stderr_writer"
+        ;;
+    growing)
+        trap '' TERM
+        printf '%s\n' "$$" > "$directory/leader"
+        sh -c '
+            trap "" TERM
+            printf "%s\n" "$$" > "$1/descendant"
+            while :; do
+                head -c 8192 /dev/zero | tr "\000" D >&2
+            done
+        ' fixture-descendant "$directory" &
+        # Publish both PIDs before flooding, so a reader that overflows in
+        # microseconds still finds the descendant marker to check teardown.
+        waited=0
+        while [ ! -f "$directory/descendant" ] && [ "$waited" -lt 50 ]; do
+            sleep 0.1
+            waited=$((waited + 1))
+        done
+        while :; do
+            head -c 8192 /dev/zero | tr '\000' G
+        done
+        ;;
+    payload)
+        cat "$directory/stdout-payload"
+        if [ -f "$directory/stderr-payload" ]; then
+            cat "$directory/stderr-payload" >&2
+        fi
+        ;;
+    env)
+        # Record the child's environment and working directory so a test can
+        # prove the launcher cleared everything outside the route allowlist and
+        # pinned an explicit private directory. `env` prints KEY=VALUE lines.
+        env | sort > "$directory/env-dump"
+        pwd > "$directory/cwd"
+        : > "$directory/done"
+        ;;
+    *)
+        printf 'unknown fixture mode: %s\n' "$mode" >&2
+        exit 64
+        ;;
+esac
