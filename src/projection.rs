@@ -63,6 +63,7 @@ pub(crate) fn hash_entries(entries: &[AppEntry]) -> u64 {
             deployed_arch: _,
             deployed_commit: _,
             removed_origin,
+            enzimos_detail: _,
         } = e;
         id.hash(&mut h);
         name.hash(&mut h);

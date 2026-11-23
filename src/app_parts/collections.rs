@@ -18,8 +18,38 @@ impl Store {
     }
 
     // Per-app HTTP lookups are restricted to IDs already present in the public catalogue.
-    pub(crate) fn detail_metadata_allowed(&self, app_id: &str) -> bool {
-        self.catalog_entry(app_id).is_some()
+    pub(crate) fn detail_metadata_allowed(&self, app_id: &str, origin: &str) -> bool {
+        origin == services::FLATHUB_REPOSITORY.origin
+            && self.flathub_catalog_entry(app_id).is_some()
+    }
+
+    pub(crate) fn detail_from_enzimos(&self, app_id: &str) -> bool {
+        let origin = services::ENZIMOS_REPOSITORY.origin;
+        let scope = match self.detail_scope_identity.as_str() {
+            "user" => services::InstallScope::User,
+            "system" => services::InstallScope::System,
+            "unknown" | "--user" => {
+                return self.detail_origin == origin
+                    && self.enzimos_apps.iter().any(|entry| entry.id == app_id);
+            }
+            _ => return false,
+        };
+        from_enzimos_remote(&self.remotes, &self.detail_origin, &scope)
+    }
+
+    pub(crate) fn enzimos_home_entries(&self) -> Vec<&AppEntry> {
+        if !self.enzimos_apps.is_empty() {
+            return self.enzimos_apps.iter().collect();
+        }
+        // Fresh offline installs have deployments before the first catalogue refresh.
+        let mut seen = std::collections::HashSet::new();
+        self.installed
+            .iter()
+            .filter(|row| {
+                from_enzimos_remote(&self.remotes, &row.origin, &row.install_scope)
+                    && seen.insert(row.id.as_str())
+            })
+            .collect()
     }
 
     pub(crate) fn installed_ids(&self) -> Vec<String> {
@@ -42,6 +72,20 @@ impl Store {
     // Indexed metadata also covers installed apps absent from every editorial rail.
     pub(crate) fn enrich_installed(&mut self) {
         for row in &mut self.installed {
+            if from_enzimos_remote(&self.remotes, &row.origin, &row.install_scope) {
+                if let Some(metadata) = self.enzimos_apps.iter().find(|entry| entry.id == row.id) {
+                    if row.icon_image.is_none() {
+                        row.icon_image = metadata.icon_image.clone();
+                    }
+                    if row.summary.is_empty() {
+                        row.summary.clone_from(&metadata.summary);
+                    }
+                    row.publisher.clone_from(&metadata.publisher);
+                    row.description.clone_from(&metadata.description);
+                    row.license.clone_from(&metadata.license);
+                }
+                continue;
+            }
             let metadata = self.catalog_index.entry(&row.id).or_else(|| {
                 self.catalog
                     .popular
@@ -74,6 +118,7 @@ impl Store {
             &mut self.catalog.trending,
             &mut self.catalog.new,
             &mut self.catalog.updated,
+            &mut self.enzimos_apps,
         ] {
             for entry in rail.iter_mut() {
                 entry.installed = installed.contains(&entry.id);
@@ -88,6 +133,7 @@ impl Store {
         reason = "Dispatch independent reads with the same captured detail identity"
     )]
     pub(crate) fn detail_open_tasks(
+        &self,
         cache: Option<roots::CacheCapability>,
         app_id: String,
         origin: String,
@@ -98,6 +144,16 @@ impl Store {
         cancellation: services::OperationCancellation,
         read_pool: enzui_core::blocking_task::BlockingTaskDispatcher,
     ) -> Vec<Task<Message>> {
+        let official_context = self.detail_from_enzimos(&app_id).then(|| {
+            self.enzimos_apps
+                .iter()
+                .find(|entry| entry.id == app_id)
+                .and_then(|entry| entry.enzimos_detail.as_deref().cloned())
+                .unwrap_or_else(|| services::DetailContext {
+                    metadata_state: services::DetailRouteState::KnownEmpty,
+                    ..Default::default()
+                })
+        });
         let perm_app = app_id.clone();
         let perm_label = app_id.clone();
         let ctx_app = app_id.clone();
@@ -116,6 +172,9 @@ impl Store {
         });
         let permission_refused = perm_label.clone();
         let context_task = read_pool.submit(generation, move |ctx| {
+            if let Some(official) = official_context {
+                return official;
+            }
             services::fetch_detail_context_cancellable(
                 ctx_cache.as_ref(),
                 &ctx_app,
@@ -157,4 +216,16 @@ impl Store {
             ),
         ]
     }
+}
+
+fn from_enzimos_remote(
+    remotes: &[services::RemoteInfo],
+    name: &str,
+    scope: &services::InstallScope,
+) -> bool {
+    remotes.iter().any(|remote| {
+        remote.name == name
+            && services::InstallScope::from_remote_options(&remote.options) == *scope
+            && services::matches_catalog_origin(remote, services::ENZIMOS_REPOSITORY.origin)
+    })
 }

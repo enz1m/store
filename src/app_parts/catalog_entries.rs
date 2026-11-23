@@ -20,6 +20,13 @@ impl Store {
 
     // Prefer the indexed catalogue; rail-only entries remain a fallback.
     pub(crate) fn catalog_entry(&self, app_id: &str) -> Option<&AppEntry> {
+        self.enzimos_apps
+            .iter()
+            .find(|entry| entry.id == app_id)
+            .or_else(|| self.flathub_catalog_entry(app_id))
+    }
+
+    pub(crate) fn flathub_catalog_entry(&self, app_id: &str) -> Option<&AppEntry> {
         if let Some(e) = self.catalog_index.entry(app_id) {
             return Some(e);
         }
@@ -82,7 +89,7 @@ impl Store {
         if self.route == Route::Detail
             && !self.detail_metadata_authorized
             && let Some(app_id) = self.detail_app_id.clone()
-            && self.detail_metadata_allowed(&app_id)
+            && self.detail_metadata_allowed(&app_id, &self.detail_origin)
         {
             return self.batch1_open_app_detail(app_id);
         }
@@ -147,9 +154,9 @@ impl Store {
         let mut out: Vec<&AppEntry> = Vec::with_capacity(self.catalog_index.len() + 64);
         let mut seen: std::collections::HashSet<&str> = std::collections::HashSet::new();
         for e in self
-            .catalog_index
-            .entries()
+            .enzimos_apps
             .iter()
+            .chain(self.catalog_index.entries())
             .chain(self.catalog.popular.iter())
             .chain(self.catalog.trending.iter())
             .chain(self.catalog.new.iter())

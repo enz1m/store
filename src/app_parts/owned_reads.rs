@@ -79,14 +79,19 @@ impl Store {
                 move |result| Message::OwnedInstalledLoaded { request, result },
                 move |terminal| Message::InstalledReadTerminated { request, terminal },
             ),
-            OwnedReadIntent::Remotes { request } => flatpak::owned_read_task(
-                dispatcher,
-                request,
-                services::OperationCancellation::default(),
-                services::list_remotes_cancellable,
-                move |result| Message::OwnedRemotesLoaded { request, result },
-                move |terminal| Message::RemotesReadTerminated { request, terminal },
-            ),
+            OwnedReadIntent::Remotes { request } => {
+                let cache = self.cache_cap();
+                flatpak::owned_read_task(
+                    dispatcher,
+                    request,
+                    services::OperationCancellation::default(),
+                    move |cancellation| {
+                        services::list_remotes_cancellable(cache.as_ref(), cancellation)
+                    },
+                    move |result| Message::OwnedRemotesLoaded { request, result },
+                    move |terminal| Message::RemotesReadTerminated { request, terminal },
+                )
+            }
             OwnedReadIntent::Updates {
                 request,
                 generation,

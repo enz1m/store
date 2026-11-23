@@ -269,7 +269,7 @@ pub(crate) enum Message {
 
     OwnedRemotesLoaded {
         request: u64,
-        result: Result<Vec<RemoteInfo>, String>,
+        result: Result<services::RepositoryInventory, String>,
     },
     RemotesReadTerminated {
         request: u64,

@@ -11,11 +11,13 @@ const HTTP_READ_DEADLINE_MS: u64 = 10_000;
 const HTTP_TOTAL_DEADLINE_MS: u64 = 10_000;
 const BULK_TOTAL_DEADLINE_MS: u64 = 120_000;
 const FLATHUB_ORIGIN_HOST: &str = "flathub.org";
+const ENZIMOS_ORIGIN_HOST: &str = "flatpak.enzim.dev";
 const ODRS_ORIGIN_HOST: &str = "odrs.gnome.org";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum MetadataRoute {
     Catalogue,
+    EnzimosCatalogue,
     Ratings,
     Appstream,
     Verification,
@@ -27,7 +29,9 @@ impl MetadataRoute {
         match self {
             Self::Catalogue => CATALOG_BODY_MAX_BYTES,
             Self::Ratings => RATINGS_BODY_MAX_BYTES,
-            Self::Appstream | Self::Verification | Self::Stats => PER_APP_BODY_MAX_BYTES,
+            Self::Appstream | Self::Verification | Self::Stats | Self::EnzimosCatalogue => {
+                PER_APP_BODY_MAX_BYTES
+            }
         }
     }
 
@@ -37,10 +41,19 @@ impl MetadataRoute {
                 FLATHUB_ORIGIN_HOST
             }
             Self::Ratings => ODRS_ORIGIN_HOST,
+            Self::EnzimosCatalogue => ENZIMOS_ORIGIN_HOST,
         }
     }
 
     fn transport_limits(self) -> TransportLimits {
+        if matches!(self, Self::EnzimosCatalogue) {
+            return TransportLimits {
+                max_bytes: self.body_limit() as u64,
+                connect_timeout_ms: 2_000,
+                read_timeout_ms: 2_000,
+                total_timeout_ms: 4_000,
+            };
+        }
         TransportLimits {
             max_bytes: u64::try_from(self.body_limit()).unwrap_or(u64::MAX),
             connect_timeout_ms: HTTP_CONNECT_DEADLINE_MS,

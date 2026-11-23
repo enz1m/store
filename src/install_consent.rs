@@ -78,18 +78,15 @@ impl Store {
                 .map(|remote| remote.name.clone())
         } else {
             let origin = origin.unwrap_or_default();
-            let known_url = services::KNOWN_CATALOG_REPOSITORIES
-                .iter()
-                .find(|repo| repo.origin == origin)
-                .map(|repo| services::normalise_repository_url(repo.url));
             self.remotes
                 .iter()
                 .find(|remote| {
                     services::InstallScope::from_remote_options(&remote.options) == wanted
-                        && (remote.name == origin
-                            || known_url.as_deref().is_some_and(|url| {
-                                services::normalise_repository_url(&remote.url) == url
-                            }))
+                        && if kind == OpKind::Update {
+                            remote.name == origin
+                        } else {
+                            services::matches_catalog_origin(remote, &origin)
+                        }
                 })
                 .map(|remote| remote.name.clone())
         };

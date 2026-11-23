@@ -41,7 +41,7 @@ pub(crate) fn content(store: &Store) -> Element<'_, Message> {
         let recent: Vec<&String> = store.recent_searches.iter().take(5).collect();
         if recent.is_empty() {
             body = body.push(hint(crate::i18n::label(
-                "Search Flathub by name, description or keyword.",
+                "Search apps by name, description or keyword.",
             )));
         } else {
             body = body.push(chrome::section_label(crate::i18n::label("Recent Searches")));

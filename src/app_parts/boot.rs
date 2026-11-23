@@ -185,6 +185,7 @@ impl Store {
             center: None,
             updates_read_request: 0,
             remotes: default_remotes(),
+            enzimos_apps: Vec::new(),
             remotes_read_request: 0,
             remotes_load: default_remotes_load(),
             add_remote_form: if boot_add_remote {
@@ -352,7 +353,7 @@ impl Store {
                     .cache_cap()
                     .is_none_or(|cache| cache.admit_detail_generation(store.detail_generation));
                 if cache_admitted && store.detail_generation != 0 {
-                    tasks.extend(Self::detail_open_tasks(
+                    tasks.extend(store.detail_open_tasks(
                         store.cache_cap(),
                         app_id,
                         store.detail_origin.clone(),

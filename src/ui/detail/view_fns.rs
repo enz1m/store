@@ -174,19 +174,19 @@ pub(crate) fn view<'a>(store: &'a Store, app_id: &str, width: f32) -> Element<'a
         .spacing(SECTION_HEADER_GAP),
     );
 
-    // ---- Ratings ---------------------------------------------------------
-    // What users think and who the app suits, as two cards of one height.
-    page = page.push(
-        column![
-            section_header(crate::i18n::label("Ratings"), None),
-            two_column(
-                detail_card(user_ratings_block(store)),
-                detail_card(content_rating_block(store, entry.is_some())),
-                width,
-            ),
-        ]
-        .spacing(SECTION_HEADER_GAP),
-    );
+    if !store.detail_from_enzimos(app_id) {
+        page = page.push(
+            column![
+                section_header(crate::i18n::label("Ratings"), None),
+                two_column(
+                    detail_card(user_ratings_block(store)),
+                    detail_card(content_rating_block(store, entry.is_some())),
+                    width,
+                ),
+            ]
+            .spacing(SECTION_HEADER_GAP),
+        );
+    }
 
     let releases = store.detail_releases();
     let history: Option<Element<'a, Message>> = (releases.len() > 1).then(|| {
@@ -393,6 +393,9 @@ fn detail_card<'a>(content: Element<'a, Message>) -> Element<'a, Message> {
 /// The publisher-verification chip under the app's name, with its staleness
 /// or failure disclosure (and Retry) when the answer is not current.
 fn publisher_verification<'a>(store: &'a Store, app_id: &str, name: &str) -> Element<'a, Message> {
+    if store.detail_from_enzimos(app_id) {
+        return chrome::icon_chip("package", "enzim Apps", chrome::ChipTone::Muted);
+    }
     // Only the enrichment verdict establishes verification; absent context remains pending without Retry.
     let publisher_verification = store
         .detail_context()

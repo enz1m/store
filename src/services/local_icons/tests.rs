@@ -72,6 +72,45 @@ fn raster() -> Vec<u8> {
 }
 
 #[test]
+fn appstream_icons_follow_the_selected_remote_cache() {
+    let fixture = Fixture::new("appstream");
+    let cache = fixture.dir.join("appstream/enzimos/x86_64");
+    let hash = "b".repeat(64);
+    let icons = cache.join(&hash).join("icons/128x128");
+    std::fs::create_dir_all(&icons).unwrap();
+    std::fs::write(icons.join("org.example.Private.png"), raster()).unwrap();
+    symlink(&hash, cache.join("active")).unwrap();
+    let remote = RemoteInfo {
+        name: "enzimos".into(),
+        options: "user".into(),
+        ..Default::default()
+    };
+    let mut entry = AppEntry {
+        id: fixture.entry.id.clone(),
+        ..Default::default()
+    };
+    let hydrate = |entry: &mut AppEntry, remote: &RemoteInfo| {
+        fixture
+            .provider
+            .hydrate_appstream(std::slice::from_mut(entry), remote, "x86_64", &|| false);
+    };
+    hydrate(&mut entry, &remote);
+    assert!(entry.icon_image.take().is_some());
+    hydrate(
+        &mut entry,
+        &RemoteInfo {
+            options: "system".into(),
+            ..remote.clone()
+        },
+    );
+    assert!(entry.icon_image.is_none());
+    std::fs::remove_file(cache.join("active")).unwrap();
+    symlink(format!("../x86_64/{hash}"), cache.join("active")).unwrap();
+    hydrate(&mut entry, &remote);
+    assert!(entry.icon_image.is_none());
+}
+
+#[test]
 fn installed_identity_raster_and_scope_are_required() {
     let mut f = Fixture::new("identity");
     assert!(root(Path::new("relative"), f.provider.uid).is_none());

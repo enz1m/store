@@ -61,18 +61,9 @@ pub(crate) fn install_authorization(
     if origin.is_empty() {
         return Authorization::Refused(REPOSITORY_UNKNOWN);
     }
-    let known_url = KNOWN_CATALOG_REPOSITORIES
-        .iter()
-        .find(|repository| repository.origin == origin)
-        .map(|repository| normalise_repository_url(repository.url));
     let matched: Vec<&RemoteInfo> = remotes
         .iter()
-        .filter(|remote| {
-            remote.name == origin
-                || known_url
-                    .as_deref()
-                    .is_some_and(|url| normalise_repository_url(&remote.url) == url)
-        })
+        .filter(|remote| matches_catalog_origin(remote, origin))
         .collect();
     if matched.is_empty() {
         return Authorization::Refused(REPOSITORY_UNKNOWN);

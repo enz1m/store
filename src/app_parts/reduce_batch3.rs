@@ -180,7 +180,8 @@ impl Store {
         if self.route == Route::Detail
             && let Some(app_id) = self.detail_app_id.clone()
         {
-            self.detail_metadata_authorized = self.detail_metadata_allowed(&app_id);
+            self.detail_metadata_authorized =
+                self.detail_metadata_allowed(&app_id, &self.detail_origin);
             let age_secs = self.detail_settled_at.map_or(0, |settled| {
                 self.activity_now_ms().saturating_sub(settled) / 1000
             });
@@ -212,7 +213,7 @@ impl Store {
                 }
             }
             if let Some(generation) = self.next_detail_generation() {
-                tasks.extend(Self::detail_open_tasks(
+                tasks.extend(self.detail_open_tasks(
                     self.cache_cap(),
                     app_id,
                     self.detail_origin.clone(),
@@ -383,14 +384,18 @@ impl Store {
     pub(crate) fn batch3_owned_remotes_loaded(
         &mut self,
         request: u64,
-        result: Result<Vec<RemoteInfo>, String>,
+        result: Result<services::RepositoryInventory, String>,
     ) -> Task<Message> {
         self.deferred_owned_reads.retry_settled(request);
         if request == self.remotes_read_request {
             match result {
-                Ok(list) => {
-                    self.remotes = list;
+                Ok(inventory) => {
+                    self.remotes = inventory.remotes;
                     self.remotes_load = services::RemoteLoad::Loaded;
+                    if let Some(apps) = inventory.enzimos_apps {
+                        self.enzimos_apps = apps;
+                        self.enrich_installed();
+                    }
                 }
                 Err(error) => {
                     self.remotes_load = services::RemoteLoad::Failed(error);

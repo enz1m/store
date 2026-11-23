@@ -408,9 +408,11 @@ pub(crate) fn view<'a>(store: &'a Store, rows: &'a [AppEntry], width: f32) -> El
                 .into();
         }
         let page = if store.search_query.trim().is_empty() {
-            enz_status_page(crate::i18n::label("Search Flathub"))
+            enz_status_page(crate::i18n::label("Search apps"))
                 .icon("search")
-                .description(crate::i18n::label("Type to search Flathub."))
+                .description(crate::i18n::label(
+                    "Type to search configured repositories.",
+                ))
         } else if store.loading_catalog {
             enz_status_page(crate::i18n::label("Loading catalogue…"))
                 .icon("loader")

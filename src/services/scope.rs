@@ -155,7 +155,7 @@ pub(crate) struct CatalogRepository {
     pub url: &'static str,
 }
 
-/// Flathub, the one catalogue source this build reads from.
+/// Flathub’s public catalogue.
 pub(crate) const FLATHUB_REPOSITORY: CatalogRepository = CatalogRepository {
     origin: "flathub",
     // The same URL `fixture_remotes` declares and `flatpak remotes
@@ -163,13 +163,28 @@ pub(crate) const FLATHUB_REPOSITORY: CatalogRepository = CatalogRepository {
     url: "https://dl.flathub.org/repo/",
 };
 
-/// Every catalogue source whose repository this build can recognise by URL.
-///
-/// One entry today. An `origin` that is not in here can still be matched by
-/// name — an installed row's `origin` came from flatpak itself, so it names a
-/// configured remote by construction — but it cannot be recognised through a
-/// rename, and [`install_authorization`] says so rather than guessing.
-pub(crate) const KNOWN_CATALOG_REPOSITORIES: &[CatalogRepository] = &[FLATHUB_REPOSITORY];
+pub(crate) const ENZIMOS_REPOSITORY: CatalogRepository = CatalogRepository {
+    origin: "enzimos",
+    url: "https://flatpak.enzim.dev/repo/",
+};
+
+const KNOWN_CATALOG_REPOSITORIES: &[CatalogRepository] =
+    &[FLATHUB_REPOSITORY, ENZIMOS_REPOSITORY];
+
+pub(crate) fn matches_catalog_origin(remote: &RemoteInfo, origin: &str) -> bool {
+    let url_matches = KNOWN_CATALOG_REPOSITORIES
+        .iter()
+        .find(|repository| repository.origin == origin)
+        .is_some_and(|repository| normalise_repository_url(&remote.url) ==
+            normalise_repository_url(repository.url));
+    if origin == ENZIMOS_REPOSITORY.origin {
+        url_matches && !remote.options.split(',').any(|flag| {
+            matches!(flag.trim(), "disabled" | "noenumerate" | "no-gpg-verify")
+        })
+    } else {
+        remote.name == origin || url_matches
+    }
+}
 
 /// Compare two repository URLs the way two spellings of one repository should
 /// compare: case-insensitively, ignoring a trailing slash and surrounding

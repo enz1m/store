@@ -3,6 +3,47 @@
 use super::*;
 
 #[test]
+fn offline_home_and_detail_use_the_installed_apps_repository() {
+    use crate::services::{AppEntry, ENZIMOS_REPOSITORY, InstallScope, RemoteInfo};
+
+    let mut store = browse_store();
+    store.remotes = vec![
+        RemoteInfo {
+            name: "enzimos".into(),
+            url: ENZIMOS_REPOSITORY.url.into(),
+            options: "system".into(),
+            ..Default::default()
+        },
+        RemoteInfo {
+            name: "enzimos".into(),
+            url: "https://example.org/repo/".into(),
+            options: "user".into(),
+            ..Default::default()
+        },
+    ];
+    let official = AppEntry {
+        id: "org.test.Verified".into(),
+        origin: "enzimos".into(),
+        installed: true,
+        install_scope: InstallScope::System,
+        ..Default::default()
+    };
+    let other = AppEntry {
+        install_scope: InstallScope::User,
+        ..official.clone()
+    };
+    store.installed = vec![other.clone(), official.clone()];
+    assert_eq!(store.enzimos_home_entries(), vec![&official]);
+
+    let _ = store.update(Message::open_app_detail(&official));
+    assert_eq!(label_count(&nodes(&store), "enzim Apps"), 1);
+    assert!(!store.detail_metadata_authorized);
+
+    let _ = store.update(Message::open_app_detail(&other));
+    assert_eq!(label_count(&nodes(&store), "enzim Apps"), 0);
+}
+
+#[test]
 fn a_stale_detail_context_cannot_publish_its_trust_state_onto_another_app() {
     let mut store = browse_store();
     let _ = store.update(Message::OpenAppDetail("org.test.Verified".into()));

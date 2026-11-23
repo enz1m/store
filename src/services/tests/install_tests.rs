@@ -110,3 +110,31 @@ fn a_fresh_install_resolves_its_repository_and_never_guesses_a_scope() {
         }
     }
 }
+
+#[test]
+fn official_catalog_only_installs_from_the_configured_official_url() {
+    let remote = |name: &str, url: &str| RemoteInfo {
+        name: name.into(),
+        title: name.into(),
+        url: url.into(),
+        options: "user".into(),
+    };
+    let configured = remote("renamed-enzimos", ENZIMOS_REPOSITORY.url);
+    let same_name = remote("enzimos", "https://example.org/repo/");
+    assert_eq!(
+        install_authorization(
+            ENZIMOS_REPOSITORY.origin,
+            &RemoteLoad::Loaded,
+            std::slice::from_ref(&same_name),
+        ),
+        Authorization::Refused(REPOSITORY_UNKNOWN),
+    );
+    assert_eq!(
+        install_authorization(
+            ENZIMOS_REPOSITORY.origin,
+            &RemoteLoad::Loaded,
+            &[same_name, configured],
+        ),
+        Authorization::Allowed(MutationScope::USER),
+    );
+}

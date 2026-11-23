@@ -42,6 +42,8 @@ pub(crate) struct AppEntry {
     /// rehydrated through the bounded warm-cache decoder on load.
     #[serde(skip)]
     pub icon_image: Option<crate::bounded_image::RenderImage>,
+    #[serde(skip)]
+    pub enzimos_detail: Option<std::sync::Arc<DetailContext>>,
     /// SPDX license expression (e.g. `"GPL-3.0-or-later"`, `"Proprietary"`).
     /// Populated for detail-page apps (from the appstream endpoint) and left
     /// empty on collection hits — the tile shows "—" until the per-app fetch

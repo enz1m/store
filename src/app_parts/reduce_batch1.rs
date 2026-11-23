@@ -95,7 +95,7 @@ impl Store {
             services::InstallScope::System => (None, "system".to_owned()),
             services::InstallScope::Named(name) => (None, format!("named:{name}")),
         };
-        let metadata_authorized = self.detail_metadata_allowed(&app_id);
+        let metadata_authorized = self.detail_metadata_allowed(&app_id, &origin);
         self.route = Route::Detail;
         self.detail_app_id = Some(app_id.clone());
         self.detail_origin = origin.clone();
@@ -133,7 +133,7 @@ impl Store {
             }
             return Task::batch(tasks);
         };
-        let mut tasks = Self::detail_open_tasks(
+        let mut tasks = self.detail_open_tasks(
             self.cache_cap(),
             app_id,
             origin,

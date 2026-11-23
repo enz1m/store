@@ -631,30 +631,38 @@ fn collection_section<'a>(
             .into(),
         );
 
-    let row_scope = kind.heading();
-    let cells: Vec<CellFn<'a, Message>> = rows
-        .into_iter()
-        .map(|entry| {
-            let id_prefix = format!("store-discover-{row_scope}-{}", entry.id);
-            let f: CellFn<'a, Message> = Box::new(move || {
-                discover_row(entry, density, operations, id_prefix.clone(), repositories)
-            });
-            f
-        })
-        .collect();
-
-    let grid: Element<'a, Message> = enz_responsive_grid(cells)
-        .ramp(ramp)
-        .gap_x(SpaceToken::Lg)
-        .gap_y(SpaceToken::Xs)
-        .into();
-
+    let grid = app_grid(heading, rows, density, ramp, operations, repositories);
     Some(
         column![header.into_element(), grid]
             .spacing(SpaceToken::Sm.px())
             .width(Length::Fill)
             .into(),
     )
+}
+
+fn app_grid<'a>(
+    section: &str,
+    rows: impl IntoIterator<Item = &'a crate::services::AppEntry>,
+    density: RowDensity,
+    ramp: ColumnRamp,
+    operations: &'a [crate::model::OperationState],
+    repositories: crate::services::RepositoryAnswer<'a>,
+) -> Element<'a, Message> {
+    let cells: Vec<CellFn<'a, Message>> = rows
+        .into_iter()
+        .map(|entry| {
+            let id_prefix = format!("store-discover-{section}-{}", entry.id);
+            let row: CellFn<'a, Message> = Box::new(move || {
+                discover_row(entry, density, operations, id_prefix.clone(), repositories)
+            });
+            row
+        })
+        .collect();
+    enz_responsive_grid(cells)
+        .ramp(ramp)
+        .gap_x(SpaceToken::Lg)
+        .gap_y(SpaceToken::Xs)
+        .into()
 }
 
 // Reuse the cached ranking instead of sorting the catalog in each view.
@@ -731,7 +739,9 @@ pub(crate) fn view<'a>(store: &'a Store, width: f32) -> Element<'a, Message> {
     let ramp = section_ramp(section_width);
 
     // The complete index establishes content even when every ranking rail is unavailable.
-    let has_content = !store.catalog_index.is_empty()
+    let official = store.enzimos_home_entries();
+    let has_content = !official.is_empty()
+        || !store.catalog_index.is_empty()
         || !store.catalog.popular.is_empty()
         || !store.catalog.trending.is_empty()
         || !store.catalog.new.is_empty();
@@ -839,7 +849,33 @@ pub(crate) fn view<'a>(store: &'a Store, width: f32) -> Element<'a, Message> {
         (CollectionKind::RecentlyAdded, &store.catalog.new),
         (CollectionKind::RecentlyUpdated, &store.catalog.updated),
     ];
-    let mut first_section = true;
+    let official: Vec<_> = official
+        .into_iter()
+        .filter(|entry| !shown_ids.contains(&entry.id.as_str()))
+        .collect();
+    let mut first_section = official.is_empty();
+    if !first_section {
+        let grid = app_grid(
+            "enzimos",
+            official.iter().copied(),
+            cell_density,
+            ramp,
+            &store.operations,
+            store.repository_answer(),
+        );
+        shown_ids.extend(official.iter().map(|entry| entry.id.as_str()));
+        body.push(
+            column![
+                enz_pane_header("enzim Apps".to_owned())
+                    .title_size(TextSize::Title2.px())
+                    .heading(HeadingLevel::Section)
+                    .into_element(),
+                grid,
+            ]
+            .spacing(SpaceToken::Sm.px())
+            .into(),
+        );
+    }
     for (kind, items) in sections {
         if let Some(section) = collection_section(
             kind,

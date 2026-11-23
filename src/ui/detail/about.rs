@@ -115,47 +115,49 @@ fn about_facts(
             entry.size.clone(),
         );
     }
-    match store.detail_context() {
-        Some(context) => match context.stats_state {
-            crate::services::DetailRouteState::Known => push_text(
-                &mut facts,
-                crate::i18n::label("Monthly installs"),
-                crate::model::format_installs(context.installs_last_month),
-            ),
-            crate::services::DetailRouteState::KnownEmpty => push_text(
-                &mut facts,
-                crate::i18n::label("Monthly installs"),
-                crate::i18n::label("No installs reported").to_owned(),
-            ),
-            crate::services::DetailRouteState::Failed => push_text(
-                &mut facts,
-                crate::i18n::label("Install statistics"),
-                crate::i18n::label("Unavailable").to_owned(),
-            ),
-            crate::services::DetailRouteState::Loading => {
-                facts.push((crate::i18n::label("Monthly installs"), FactValue::Pending))
-            }
-            crate::services::DetailRouteState::CachedStale { age_secs } => {
-                push_text(
+    if !store.detail_from_enzimos(app_id) {
+        match store.detail_context() {
+            Some(context) => match context.stats_state {
+                crate::services::DetailRouteState::Known => push_text(
                     &mut facts,
                     crate::i18n::label("Monthly installs"),
                     crate::model::format_installs(context.installs_last_month),
-                );
-                push_text(
+                ),
+                crate::services::DetailRouteState::KnownEmpty => push_text(
+                    &mut facts,
+                    crate::i18n::label("Monthly installs"),
+                    crate::i18n::label("No installs reported").to_owned(),
+                ),
+                crate::services::DetailRouteState::Failed => push_text(
                     &mut facts,
                     crate::i18n::label("Install statistics"),
-                    crate::i18n::format(
-                        crate::i18n::localizer(),
-                        "Cached from {} ago; refreshing",
-                        &[(
-                            "arg0",
-                            &(crate::model::format_age(age_secs.saturating_mul(1000))),
-                        )],
-                    ),
-                );
-            }
-        },
-        None => facts.push((crate::i18n::label("Monthly installs"), FactValue::Pending)),
+                    crate::i18n::label("Unavailable").to_owned(),
+                ),
+                crate::services::DetailRouteState::Loading => {
+                    facts.push((crate::i18n::label("Monthly installs"), FactValue::Pending))
+                }
+                crate::services::DetailRouteState::CachedStale { age_secs } => {
+                    push_text(
+                        &mut facts,
+                        crate::i18n::label("Monthly installs"),
+                        crate::model::format_installs(context.installs_last_month),
+                    );
+                    push_text(
+                        &mut facts,
+                        crate::i18n::label("Install statistics"),
+                        crate::i18n::format(
+                            crate::i18n::localizer(),
+                            "Cached from {} ago; refreshing",
+                            &[(
+                                "arg0",
+                                &(crate::model::format_age(age_secs.saturating_mul(1000))),
+                            )],
+                        ),
+                    );
+                }
+            },
+            None => facts.push((crate::i18n::label("Monthly installs"), FactValue::Pending)),
+        }
     }
     if let Some(entry) = entry {
         push_text(

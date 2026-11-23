@@ -1,6 +1,6 @@
-//! Bounded raster icons from the exact installed Flatpak deployment, without HTTP.
+//! Bounded icons from installed Flatpaks and their AppStream cache.
 
-use super::{AppEntry, InstallScope};
+use super::{AppEntry, InstallScope, RemoteInfo};
 use crate::bounded_image::{RemoteImage, RenderImage};
 use rustix::fs::{Mode, OFlags};
 use std::fs::File;
@@ -78,6 +78,13 @@ fn root(path: &Path, uid: u32) -> Option<File> {
     Some(fd)
 }
 
+fn checksum(value: &str) -> bool {
+    value.len() == 64
+        && value
+            .bytes()
+            .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
+}
+
 impl LocalIcons {
     #[cfg(not(test))]
     pub(super) fn from_env() -> Self {
@@ -116,11 +123,7 @@ impl LocalIcons {
         {
             return None;
         }
-        let base = match entry.install_scope {
-            InstallScope::User => self.user.as_ref()?,
-            InstallScope::System => self.system.as_ref()?,
-            InstallScope::Unknown | InstallScope::Named(_) => return None,
-        };
+        let base = self.installation(&entry.install_scope)?;
         let mut deployment = base.try_clone().ok()?;
         for name in ["app", &entry.id, &entry.deployed_arch, &entry.branch] {
             deployment = child(&deployment, name, self.uid, true)?;
@@ -129,12 +132,7 @@ impl LocalIcons {
         // Read the active link as a bounded hint; open its validated hash without following it.
         let active = rustix::fs::readlinkat(deployment.as_fd(), "active", Vec::new()).ok()?;
         let commit = active.to_str().ok()?;
-        if commit.len() != 64
-            || !commit
-                .bytes()
-                .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
-            || !commit.starts_with(&entry.deployed_commit)
-        {
+        if !checksum(commit) || !commit.starts_with(&entry.deployed_commit) {
             return None;
         }
         let branch = deployment;
@@ -189,6 +187,60 @@ impl LocalIcons {
             }
         }
         None
+    }
+
+    fn installation(&self, scope: &InstallScope) -> Option<&File> {
+        match scope {
+            InstallScope::User => self.user.as_ref(),
+            InstallScope::System => self.system.as_ref(),
+            InstallScope::Unknown | InstallScope::Named(_) => None,
+        }
+    }
+
+    fn appstream(&self, remote: &RemoteInfo, arch: &str) -> Option<File> {
+        let base = self.installation(&InstallScope::from_remote_options(&remote.options))?;
+        let mut directory = child(base, "appstream", self.uid, true)?;
+        for name in [&remote.name, arch] {
+            directory = child(&directory, name, self.uid, true)?;
+        }
+        // Flatpak points `active` at a checksum directory in the same cache.
+        let active = rustix::fs::readlinkat(directory.as_fd(), "active", Vec::new()).ok()?;
+        let commit = active.to_str().ok().filter(|value| checksum(value))?;
+        let deployment = child(&directory, commit, self.uid, true)?;
+        child(&deployment, "icons", self.uid, true)
+    }
+
+    pub(super) fn hydrate_appstream(
+        &self,
+        entries: &mut [AppEntry],
+        remote: &RemoteInfo,
+        arch: &str,
+        is_cancelled: &dyn Fn() -> bool,
+    ) {
+        let Some(directory) = self.appstream(remote, arch) else {
+            return;
+        };
+        let sizes: Vec<_> = ["128x128", "64x64"]
+            .into_iter()
+            .filter_map(|size| child(&directory, size, self.uid, true))
+            .collect();
+        let deadline = Instant::now() + BATCH_DEADLINE;
+        let cancelled = || is_cancelled() || Instant::now() >= deadline;
+        for entry in entries.iter_mut().take(MAX_ICONS) {
+            if cancelled() {
+                break;
+            }
+            if entry.icon_image.is_some() {
+                continue;
+            }
+            let png = format!("{}.png", entry.id);
+            entry.icon_image = sizes.iter().find_map(|size| {
+                let bytes = child(size, &png, self.uid, false).and_then(read_bounded)?;
+                crate::bounded_image::decode_local_icon(&bytes, &cancelled)
+                    .ok()
+                    .map(RenderImage::Remote)
+            });
+        }
     }
 
     pub(super) fn hydrate(&self, entries: &mut [AppEntry], is_cancelled: &dyn Fn() -> bool) {

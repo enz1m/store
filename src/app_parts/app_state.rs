@@ -103,6 +103,7 @@ pub(crate) struct Store {
     pub(crate) center: Option<enzui_agent::center::CenterHost<crate::center::CenterCall>>,
     pub(crate) updates_read_request: u64,
     pub remotes: Vec<RemoteInfo>,
+    pub(crate) enzimos_apps: Vec<AppEntry>,
     pub(crate) remotes_read_request: u64,
     /// Repository read state; installing requires a positively known, usable repository.
     pub remotes_load: services::RemoteLoad,
