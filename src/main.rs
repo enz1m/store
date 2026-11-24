@@ -248,6 +248,12 @@ impl Store {
         self.installed.iter().any(|e| e.id == app_id)
     }
 
+    /// enzimOS ships the app natively under the same id, so a Flatpak copy
+    /// would be a second app with the same name and desktop entry.
+    pub(crate) fn is_system_app(&self, app_id: &str) -> bool {
+        !self.is_installed(app_id) && system_apps().iter().any(|id| id == app_id)
+    }
+
     /// Whether an installed app has a pending update.
     pub(crate) fn has_update(&self, app_id: &str) -> bool {
         self.update_for(app_id).is_some()
@@ -376,3 +382,24 @@ fn with_desktop_identity(settings: iced::window::Settings) -> iced::window::Sett
 
 #[cfg(test)]
 use startup_load::{load_catalog_cached, refresh_catalog_with_source};
+
+/// App ids with a native desktop entry in the system's application directory.
+pub(crate) fn system_apps() -> &'static [String] {
+    static APPS: std::sync::OnceLock<Vec<String>> = std::sync::OnceLock::new();
+    APPS.get_or_init(|| {
+        std::fs::read_dir("/usr/share/applications")
+            .map(|entries| {
+                entries
+                    .flatten()
+                    .filter_map(|entry| {
+                        entry
+                            .file_name()
+                            .to_str()?
+                            .strip_suffix(".desktop")
+                            .map(str::to_owned)
+                    })
+                    .collect()
+            })
+            .unwrap_or_default()
+    })
+}

@@ -57,6 +57,7 @@ app-home-3a7869 = Home
 app-homepage-9e3391 = Homepage
 app-host-fs-0e06fe = Host FS
 app-in-progress-c1f88e = In progress
+app-included-with-enzimos = Included with enzimOS
 app-install-569ca4 = Install
 app-install-statistics-f5c918 = Install statistics
 app-installation-permissions-5b93cc = Installation permissions

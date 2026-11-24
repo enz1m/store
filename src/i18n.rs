@@ -177,6 +177,7 @@ const MESSAGES: &[(&str, &str)] = &[
     ("Homepage", "app-homepage-9e3391"),
     ("Host FS", "app-host-fs-0e06fe"),
     ("In progress", "app-in-progress-c1f88e"),
+    ("Included with enzimOS", "app-included-with-enzimos"),
     ("Install", "app-install-569ca4"),
     ("Install statistics", "app-install-statistics-f5c918"),
     ("Install {name}", "app-install-name-15d27e"),

@@ -57,6 +57,7 @@ app-home-3a7869 = Inicio
 app-homepage-9e3391 = Página web
 app-host-fs-0e06fe = Sistema de archivos del equipo
 app-in-progress-c1f88e = En curso
+app-included-with-enzimos = Incluida en enzimOS
 app-install-569ca4 = Instalar
 app-install-statistics-f5c918 = Estadísticas de instalación
 app-installation-permissions-5b93cc = Permisos de instalación

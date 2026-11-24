@@ -53,7 +53,14 @@ impl Store {
     }
 
     pub(crate) fn installed_ids(&self) -> Vec<String> {
-        self.installed.iter().map(|e| e.id.clone()).collect()
+        let mut ids: Vec<String> = self.installed.iter().map(|e| e.id.clone()).collect();
+        ids.extend(
+            crate::system_apps()
+                .iter()
+                .filter(|id| !self.is_installed(id))
+                .cloned(),
+        );
+        ids
     }
 
     pub(crate) fn is_busy(&self) -> bool {
@@ -112,7 +119,7 @@ impl Store {
     // Discover and the index-backed search disagree about the same app.
     fn sync_catalog_installed_flags(&mut self) {
         let installed: std::collections::HashSet<String> =
-            self.installed.iter().map(|e| e.id.clone()).collect();
+            self.installed_ids().into_iter().collect();
         self.catalog_index.apply_installed(&installed);
         for rail in [
             &mut self.catalog.popular,

@@ -623,6 +623,12 @@ fn header_actions<'a>(
             // refusal differently.
             Some(refusal) => notes.push(super::super::library::refusal_chip(refusal)),
         }
+    } else if store.is_system_app(app_id) {
+        notes.push(super::super::chrome::icon_chip(
+            "circle-check",
+            crate::i18n::label("Included with enzimOS"),
+            super::super::chrome::ChipTone::Success,
+        ));
     } else {
         match install_authorization.refusal() {
             None => buttons.push(
