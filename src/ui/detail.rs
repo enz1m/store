@@ -52,6 +52,7 @@ pub(crate) use labels::{
     DIALOG_HEIGHT_FRACTION, loading_screenshots_copy, permission_glance, ratings_attribution,
     ratings_breakdown_toggle_label, update_all_label, whats_new_heading,
 };
+use permission_list::{PermissionItem, permission_badges, permission_groups};
 pub(crate) use pills::{
     DETAIL_ACTION_WIDTH, permission_pills, present_screenshot_viewer, screenshot_gallery,
     screenshot_gallery_placeholder, two_column,

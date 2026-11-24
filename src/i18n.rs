@@ -173,9 +173,7 @@ const MESSAGES: &[(&str, &str)] = &[
     ("Hide end-of-life filter on. Press to turn off.", "app-hide-end-of-life-filter-on-press-to-turn-off-481af6"),
     ("Hide full permissions", "app-hide-full-permissions-c1b4eb"),
     ("Hide rating breakdown", "app-hide-rating-breakdown-f6eca3"),
-    ("Home", "app-home-3a7869"),
     ("Homepage", "app-homepage-9e3391"),
-    ("Host FS", "app-host-fs-0e06fe"),
     ("In progress", "app-in-progress-c1f88e"),
     ("Included with enzimOS", "app-included-with-enzimos"),
     ("Install", "app-install-569ca4"),
@@ -344,7 +342,6 @@ const MESSAGES: &[(&str, &str)] = &[
     ("Support", "app-support-be9194"),
     ("Supported", "app-supported-c16580"),
     ("System", "app-system-6725e7"),
-    ("System Bus", "app-system-bus-50c1dc"),
     ("System Bus Policy", "app-system-bus-policy-739445"),
     ("The permission review could not be completed", "app-the-permission-review-could-not-be-completed-7e5592"),
     ("The repository resolved a different version of this app than the one removed", "app-the-repository-resolved-a-different-version-of-this-app-than-the-9ae900"),
@@ -498,7 +495,6 @@ const MESSAGES: &[(&str, &str)] = &[
     ("Shared memory", "app-shared-memory-45c646"),
     ("Share memory with other apps.", "app-share-memory-with-other-apps-4c5d3a"),
     ("Input devices", "app-input-devices-9dc963"),
-    ("Use game controllers and other input devices.", "app-use-game-controllers-and-other-input-devices-490c3a"),
     ("USB devices", "app-usb-devices-e33391"),
     ("Use USB devices directly.", "app-use-usb-devices-directly-238994"),
     ("Development tools", "app-development-tools-6cd371"),
@@ -534,6 +530,12 @@ const MESSAGES: &[(&str, &str)] = &[
     ("Files", "app-files-abc7e9"),
     ("Features", "app-features-5697d0"),
     ("Services", "app-services-604dce"),
+    ("Read keyboards, mice and game controllers directly, including what you type in other apps.", "app-read-keyboards-mice-and-game-controllers-directly-including-what-801566"),
+    ("Flatpak apps and their permissions", "app-flatpak-apps-and-their-permissions-27d607"),
+    ("Programs started when you sign in", "app-programs-started-when-you-sign-in-8df947"),
+    ("Start any program on this computer without the sandbox's limits.", "app-start-any-program-on-this-computer-without-the-sandbox-s-limits-71f064"),
+    ("Programs outside the sandbox", "app-programs-outside-the-sandbox-6df9c9"),
+    ("Can access: {} and {count} more.", "app-can-access-and-count-more-e4708e"),
 ];
 
 pub(crate) fn count(key: &str, count: usize) -> String {

@@ -11,36 +11,42 @@ pub(crate) fn ratings_breakdown_toggle_label(open: bool) -> &'static str {
     }
 }
 
-/// Summarize declared sandbox access, distinguishing missing metadata from an explicitly empty permission set.
+/// Summarize declared sandbox access from the same items the permissions dialog lists, broad access first.
 pub(crate) fn permission_glance(perms: Option<&Permissions>) -> String {
     let Some(p) = perms else {
         return crate::i18n::label("Permission details are unavailable.").to_owned();
     };
-    if p.is_empty() {
-        return crate::i18n::label("Runs fully sandboxed \u{2014} no extra access requested.")
-            .to_owned();
-    }
-    let granted: Vec<String> = p
-        .stat_pills()
+    let mut items: Vec<PermissionItem> = permission_groups(p)
         .into_iter()
-        .filter_map(|(label, on)| {
-            if on {
-                Some(crate::i18n::text(label))
-            } else {
-                None
-            }
-        })
+        .flat_map(|(_, items)| items)
         .collect();
-    if granted.is_empty() {
+    if items.is_empty() {
         return crate::i18n::label("Runs fully sandboxed \u{2014} no extra access requested.")
             .to_owned();
     }
-    crate::i18n::format(
-        crate::i18n::localizer(),
-        "Can access: {}.",
-        &[("arg0", &(granted.join(", ")))],
-    )
+    items.sort_by_key(|item| !item.broad);
+    let titles: Vec<String> = items
+        .iter()
+        .take(GLANCE_TITLES)
+        .map(|item| item.title.clone())
+        .collect();
+    let more = items.len() - titles.len();
+    if more == 0 {
+        crate::i18n::format(
+            crate::i18n::localizer(),
+            "Can access: {}.",
+            &[("arg0", &(titles.join(", ")))],
+        )
+    } else {
+        crate::i18n::format(
+            crate::i18n::localizer(),
+            "Can access: {} and {count} more.",
+            &[("arg0", &(titles.join(", "))), ("count", &more)],
+        )
+    }
 }
+
+const GLANCE_TITLES: usize = 4;
 
 // ---------------------------------------------------------------------------
 // Single-source copy helpers — following the 1f57337 convention.

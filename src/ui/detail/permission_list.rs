@@ -2,9 +2,10 @@
 //!
 //! Each declared permission becomes a row with an icon, a plain name and a
 //! line saying what it allows, grouped by kind. Broad access (the network,
-//! all files, every device, X11, the whole of D-Bus) is marked with a
-//! warning-toned icon. The raw Flatpak value stays in the row's detail for
-//! anyone who knows it.
+//! the home folder and other files outside the app's own, input and other
+//! devices, X11, the whole of D-Bus, and services that run commands outside
+//! the sandbox) is marked with a warning-toned icon. The detail page's summary
+//! and badges are built from the same items.
 
 use super::*;
 use iced::widget::column;
@@ -132,10 +133,10 @@ pub(crate) fn describe_device(value: &str) -> PermissionItem {
             false,
         ),
         "input" => item(
-            "gamepad-2",
+            "keyboard",
             "Input devices",
-            "Use game controllers and other input devices.",
-            false,
+            "Read keyboards, mice and game controllers directly, including what you type in other apps.",
+            true,
         ),
         "usb" => item("usb", "USB devices", "Use USB devices directly.", false),
         other => raw("cpu", other.to_owned(), String::new(), false),
@@ -197,38 +198,99 @@ pub(crate) fn describe_filesystem(value: &str) -> PermissionItem {
             detail: crate::i18n::label("Use PipeWire, for screen sharing and cameras.").to_owned(),
             broad: false,
         },
+        flatpak if subpath_of(flatpak, "xdg-data/flatpak") => {
+            named("layers", "Flatpak apps and their permissions", true)
+        }
+        autostart if subpath_of(autostart, "xdg-config/autostart") => {
+            named("power", "Programs started when you sign in", true)
+        }
         other => PermissionItem {
             icon: "folder",
             title: other.to_owned(),
             detail: access,
-            broad: other.starts_with('/') || other == "xdg-config" || other == "xdg-data",
+            broad: escapes_app_files(other),
         },
     }
 }
 
-/// D-Bus names an app may reach, as one row: the bus, and the names.
-fn describe_bus(entries: &[String], system: bool) -> PermissionItem {
-    let names: Vec<String> = entries
+fn subpath_of(path: &str, root: &str) -> bool {
+    path.strip_prefix(root)
+        .is_some_and(|rest| rest.is_empty() || rest.starts_with('/'))
+}
+
+// Desktop configuration and data can hold startup programs, launchers and other apps' overrides.
+fn escapes_app_files(path: &str) -> bool {
+    path.starts_with('/')
+        || path.starts_with('~')
+        || ["home", "xdg-config", "xdg-data"]
+            .iter()
+            .any(|root| subpath_of(path, root))
+}
+
+// Talking to these session services starts arbitrary programs outside the sandbox.
+const HOST_COMMAND_SERVICES: &[&str] = &["org.freedesktop.Flatpak", "org.freedesktop.systemd1"];
+
+fn runs_host_commands(name: &str) -> bool {
+    HOST_COMMAND_SERVICES
         .iter()
-        .map(|entry| match entry.split_once('=') {
-            Some((name, policy)) => match policy.trim() {
-                "own" => format!("{} ({})", name.trim(), crate::i18n::label("provides it")),
-                _ => name.trim().to_owned(),
-            },
-            None => entry.trim().to_owned(),
-        })
-        .collect();
-    let title = if system {
-        crate::i18n::label("System services")
-    } else {
-        crate::i18n::label("Desktop services")
-    };
-    PermissionItem {
-        icon: "message-square",
-        title: title.to_owned(),
-        detail: names.join("\n"),
-        broad: system,
+        .any(|service| name == *service || name.starts_with(&format!("{service}.")))
+}
+
+// D-Bus names an app may reach: a row per bus, with services that run
+// programs outside the sandbox drawn out into their own row.
+fn describe_bus(entries: &[String], system: bool) -> Vec<PermissionItem> {
+    let mut names = Vec::new();
+    let mut host_commands = Vec::new();
+    let mut wildcard = false;
+    for entry in entries {
+        let (name, policy) = match entry.split_once('=') {
+            Some((name, policy)) => (name.trim(), policy.trim()),
+            None => (entry.trim(), ""),
+        };
+        if policy == "none" {
+            continue;
+        }
+        wildcard |= name.contains('*');
+        let line = match policy {
+            "own" => format!("{name} ({})", crate::i18n::label("provides it")),
+            _ => name.to_owned(),
+        };
+        if !system && policy != "see" && runs_host_commands(name) {
+            host_commands.push(line);
+        } else {
+            names.push(line);
+        }
     }
+    let mut items = Vec::new();
+    if !host_commands.is_empty() {
+        let mut detail =
+            crate::i18n::label("Start any program on this computer without the sandbox's limits.")
+                .to_owned();
+        for name in host_commands {
+            detail.push('\n');
+            detail.push_str(&name);
+        }
+        items.push(PermissionItem {
+            icon: "terminal",
+            title: crate::i18n::label("Programs outside the sandbox").to_owned(),
+            detail,
+            broad: true,
+        });
+    }
+    if !names.is_empty() {
+        let title = if system {
+            crate::i18n::label("System services")
+        } else {
+            crate::i18n::label("Desktop services")
+        };
+        items.push(PermissionItem {
+            icon: "message-square",
+            title: title.to_owned(),
+            detail: names.join("\n"),
+            broad: system || wildcard,
+        });
+    }
+    items
 }
 
 /// The permission groups that have anything in them, in reading order.
@@ -276,15 +338,26 @@ pub(crate) fn permission_groups(perms: &Permissions) -> Vec<(&'static str, Vec<P
         "Features",
         perms.features.iter().map(|v| describe_feature(v)).collect(),
     );
-    let mut services = Vec::new();
-    if !perms.session_bus.is_empty() {
-        services.push(describe_bus(&perms.session_bus, false));
-    }
-    if !perms.system_bus.is_empty() {
-        services.push(describe_bus(&perms.system_bus, true));
-    }
+    let mut services = describe_bus(&perms.session_bus, false);
+    services.extend(describe_bus(&perms.system_bus, true));
     push("Services", services);
     groups
+}
+
+/// The detail page's badges: each broad permission by name, then each group
+/// that also holds narrower access, with whether the badge marks broad access.
+pub(crate) fn permission_badges(
+    groups: &[(&'static str, Vec<PermissionItem>)],
+) -> Vec<(String, bool)> {
+    let broad = groups
+        .iter()
+        .flat_map(|(_, items)| items.iter().filter(|item| item.broad))
+        .map(|item| (item.title.clone(), true));
+    let narrow = groups
+        .iter()
+        .filter(|(_, items)| items.iter().any(|item| !item.broad))
+        .map(|(title, _)| ((*title).to_owned(), false));
+    broad.chain(narrow).collect()
 }
 
 /// One described permission as a list row.
@@ -356,4 +429,137 @@ pub(crate) fn permission_list<'a>(perms: Option<&Permissions>) -> Element<'a, Me
         );
     }
     body.into()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn perms(build: impl FnOnce(&mut Permissions)) -> Permissions {
+        let mut perms = Permissions::default();
+        build(&mut perms);
+        perms
+    }
+
+    fn strings(values: &[&str]) -> Vec<String> {
+        values.iter().map(|value| (*value).to_owned()).collect()
+    }
+
+    fn broad_flags(perms: &Permissions) -> Vec<bool> {
+        permission_groups(perms)
+            .into_iter()
+            .flat_map(|(_, items)| items)
+            .map(|item| item.broad)
+            .collect()
+    }
+
+    #[test]
+    fn access_that_can_leave_the_sandbox_is_broad() {
+        for filesystem in [
+            "~/.ssh",
+            "~/.bashrc:ro",
+            "home/Projects",
+            "xdg-config",
+            "xdg-config/autostart:create",
+            "xdg-config/systemd",
+            "xdg-data/flatpak/overrides",
+            "xdg-data/applications",
+            "/etc",
+        ] {
+            let p = perms(|p| p.filesystems = strings(&[filesystem]));
+            assert_eq!(broad_flags(&p), [true], "{filesystem}");
+        }
+        for device in ["all", "input"] {
+            let p = perms(|p| p.devices = strings(&[device]));
+            assert_eq!(broad_flags(&p), [true], "{device}");
+        }
+        for policy in [
+            "org.freedesktop.Flatpak = talk",
+            "org.freedesktop.systemd1 = talk",
+            "org.freedesktop.* = talk",
+        ] {
+            let p = perms(|p| p.session_bus = strings(&[policy]));
+            assert_eq!(broad_flags(&p), [true], "{policy}");
+        }
+    }
+
+    #[test]
+    fn narrow_access_is_not_broad() {
+        let p = perms(|p| {
+            p.filesystems = strings(&["xdg-download", "xdg-run/pipewire-0", "xdg-datafoo"]);
+            p.devices = strings(&["dri"]);
+            p.sockets = strings(&["wayland", "pulseaudio"]);
+            // The sandboxed portal, unlike the Flatpak service itself, keeps spawned programs inside.
+            p.session_bus = strings(&[
+                "org.freedesktop.portal.Flatpak = talk",
+                "org.freedesktop.Notifications = talk",
+            ]);
+        });
+        assert!(broad_flags(&p).iter().all(|broad| !broad));
+    }
+
+    #[test]
+    fn host_command_services_get_their_own_broad_row() {
+        let p = perms(|p| {
+            p.session_bus = strings(&[
+                "org.freedesktop.Flatpak = talk",
+                "org.freedesktop.Notifications = talk",
+            ]);
+        });
+        let services = permission_groups(&p).pop().unwrap().1;
+        assert_eq!(services.len(), 2);
+        assert!(services[0].broad && services[0].detail.contains("org.freedesktop.Flatpak"));
+        assert!(!services[1].broad && !services[1].detail.contains("org.freedesktop.Flatpak"));
+    }
+
+    #[test]
+    fn fully_sandboxed_only_without_any_exception() {
+        let sandboxed =
+            crate::i18n::label("Runs fully sandboxed \u{2014} no extra access requested.");
+        let revocations_only = perms(|p| {
+            p.filesystems = strings(&["!home"]);
+            p.session_bus = strings(&["org.example.Service = none"]);
+        });
+        for empty in [Permissions::default(), revocations_only] {
+            assert_eq!(permission_glance(Some(&empty)), sandboxed);
+            assert!(permission_badges(&permission_groups(&empty)).is_empty());
+        }
+        for exception in [
+            perms(|p| p.devices = strings(&["all"])),
+            perms(|p| p.sockets = strings(&["session-bus"])),
+            perms(|p| p.session_bus = strings(&["org.freedesktop.Flatpak = talk"])),
+            perms(|p| p.filesystems = strings(&["~/.ssh"])),
+            perms(|p| p.sockets = strings(&["wayland"])),
+        ] {
+            assert_ne!(
+                permission_glance(Some(&exception)),
+                sandboxed,
+                "{exception:?}"
+            );
+            assert!(!permission_badges(&permission_groups(&exception)).is_empty());
+        }
+    }
+
+    #[test]
+    fn every_broad_item_has_a_warning_badge() {
+        let p = perms(|p| {
+            p.shared = strings(&["network"]);
+            p.sockets = strings(&["wayland", "x11"]);
+            p.devices = strings(&["input", "dri"]);
+            p.filesystems = strings(&["xdg-data/flatpak/overrides", "xdg-music"]);
+            p.session_bus = strings(&["org.freedesktop.systemd1 = talk"]);
+        });
+        let groups = permission_groups(&p);
+        let badges = permission_badges(&groups);
+        for item in groups.iter().flat_map(|(_, items)| items) {
+            assert_eq!(
+                badges
+                    .iter()
+                    .any(|(label, broad)| *broad && *label == item.title),
+                item.broad,
+                "{}",
+                item.title
+            );
+        }
+    }
 }

@@ -36,8 +36,7 @@ pub(crate) struct AppEntry {
     pub publisher: String,
     /// Optional long description (paragraphs) for the detail page.
     pub description: String,
-    /// Bazaar-style "stat pills" — safe / verified / etc. See
-    /// [`Permissions::stat_pills`] for the runtime version.
+    /// Bazaar-style "stat pills" — safe / verified / etc.
     pub tags: Vec<String>,
     /// Icon URL from Flathub API. Empty when unknown.
     pub icon_url: String,
@@ -150,9 +149,7 @@ pub(crate) struct RemoteInfo {
     pub options: String,
 }
 
-/// A summary of the permissions declared in an app's `[Context]` metadata.
-/// Bazaar prints these as sortable "safety" chips; we render them as a bulleted
-/// list in the permissions dialog and a compact pill row on the detail page.
+/// The permissions declared in an app's metadata `[Context]` and bus policy groups.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Permissions {
     pub shared: Vec<String>,
@@ -162,39 +159,4 @@ pub(crate) struct Permissions {
     pub session_bus: Vec<String>,
     pub system_bus: Vec<String>,
     pub features: Vec<String>,
-}
-
-impl Permissions {
-    pub(crate) fn is_empty(&self) -> bool {
-        self.shared.is_empty()
-            && self.sockets.is_empty()
-            && self.devices.is_empty()
-            && self.filesystems.is_empty()
-            && self.session_bus.is_empty()
-            && self.system_bus.is_empty()
-            && self.features.is_empty()
-    }
-
-    /// The short "stat pills" the Bazaar detail page renders in a row across
-    /// the app hero (Safe / Network / Filesystem / etc). We derive them here so
-    /// the view stays UI-only.
-    pub(crate) fn stat_pills(&self) -> Vec<(&'static str, bool)> {
-        let network = self.shared.iter().any(|s| s == "network");
-        let home = self.filesystems.iter().any(|f| f.starts_with("home"));
-        let host_fs = self.filesystems.iter().any(|f| f.starts_with("host"));
-        let x11 = self
-            .sockets
-            .iter()
-            .any(|s| s == "x11" || s == "fallback-x11");
-        let wayland = self.sockets.iter().any(|s| s == "wayland");
-        let system_bus_open = !self.system_bus.is_empty();
-        vec![
-            ("Network", network),
-            ("Wayland", wayland),
-            ("X11", x11),
-            ("Home", home),
-            ("Host FS", host_fs),
-            ("System Bus", system_bus_open),
-        ]
-    }
 }

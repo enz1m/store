@@ -3,41 +3,28 @@
 use super::*;
 use iced::widget::column;
 
-/// Render the complete declared-permission pill set once, or a muted reassurance when no permissions are declared.
+/// Badges for declared access, from the permissions dialog's items: each broad
+/// permission in a warning tone, then each kind of narrower access.
 pub(crate) fn permission_pills<'a>(perms: Option<&Permissions>) -> Element<'a, Message> {
     let Some(p) = perms else {
         return chrome::muted_line(crate::i18n::label("Permissions unavailable"));
     };
-
-    if p.is_empty() {
+    let badges = permission_badges(&permission_groups(p));
+    if badges.is_empty() {
         return chrome::muted_line(crate::i18n::label("No sandbox exceptions declared"));
     }
-
-    let mut items: Vec<Element<'a, Message>> = Vec::new();
-
-    // The stat pills: only the *granted* ones, tinted by risk. A `false` pill
-    // is not rendered — the row shows what the app *can* do, not a matrix of
-    // everything it cannot.
-    for (label, granted) in p.stat_pills() {
-        if !granted {
-            continue;
-        }
-        let tone = match label {
-            "Network" | "Host FS" | "System Bus" => BadgeTone::Warning,
-            _ => BadgeTone::Accent,
-        };
-        let badge: Element<'a, Message> = enz_badge(&crate::i18n::text(label))
-            .tone(tone)
-            .into_element();
-        items.push(badge);
-    }
-
-    // Every stat pill was `false` (e.g. an app with only bus policy declared):
-    // fall back to a muted line rather than an empty row.
-    if items.is_empty() {
-        return chrome::muted_line(crate::i18n::label("No sandbox exceptions declared"));
-    }
-
+    let items: Vec<Element<'a, Message>> = badges
+        .into_iter()
+        .map(|(label, broad)| {
+            enz_badge(&label)
+                .tone(if broad {
+                    BadgeTone::Warning
+                } else {
+                    BadgeTone::Accent
+                })
+                .into_element()
+        })
+        .collect();
     iced::widget::Row::with_children(items)
         .spacing(SpaceToken::Sm.px())
         .align_y(Alignment::Center)
