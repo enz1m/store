@@ -258,6 +258,11 @@ pub(crate) fn validate_plan(plan: &Value, app_id: &str, remote: &str) -> Result<
     Ok(())
 }
 
+// The transport retains streamed output too, so its cap covers the worker's
+// progress bound (101 frames for each of up to 128 packages) and the reply.
+const PROGRESS_FRAME_MAX_BYTES: usize = 1024;
+const STREAM_STDOUT_MAX_BYTES: usize = 128 * 101 * PROGRESS_FRAME_MAX_BYTES + 1024 * 1024;
+
 pub(crate) fn install(
     review: &ReviewedInstall,
     cancellation: &OperationCancellation,
@@ -277,7 +282,7 @@ pub(crate) fn install(
         executable,
         &[],
         StdinPolicy::Bytes(serde_json::to_vec(&body).map_err(|_| "Invalid install request")?),
-        1024 * 1024,
+        STREAM_STDOUT_MAX_BYTES,
         65536,
         Duration::from_secs(6 * 3600 + 60),
         process::FLATPAK_ENV_ALLOWLIST,
