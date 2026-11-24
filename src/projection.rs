@@ -49,6 +49,7 @@ pub(crate) fn hash_entries(entries: &[AppEntry]) -> u64 {
             installed,
             update_available,
             verified,
+            from_enzimos,
             publisher,
             description,
             tags,
@@ -76,6 +77,7 @@ pub(crate) fn hash_entries(entries: &[AppEntry]) -> u64 {
         installed.hash(&mut h);
         update_available.hash(&mut h);
         verified.hash(&mut h);
+        from_enzimos.hash(&mut h);
         publisher.hash(&mut h);
         description.hash(&mut h);
         tags.hash(&mut h);
@@ -114,6 +116,7 @@ impl ProjectionKey {
                 hash_entries(&store.catalog.trending).hash(&mut h);
                 hash_entries(&store.catalog.new).hash(&mut h);
                 hash_entries(&store.catalog.updated).hash(&mut h);
+                hash_entries(&store.enzimos_apps).hash(&mut h);
                 h.finish()
             },
             catalog_index: store.catalog_index.content_hash(),

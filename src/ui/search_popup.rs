@@ -100,12 +100,23 @@ fn hint<'a>(text: &'static str) -> Element<'a, Message> {
 
 /// One match: icon, name and summary; it opens the app's page.
 fn result_row<'a>(entry: &crate::services::AppEntry) -> Element<'a, Message> {
-    let text = column![
+    let mut title = row![
         enz_text(entry.name.clone())
             .size(TextSize::Body)
             .weight(iced::font::Weight::Semibold)
             .single_line_elided()
             .full_width(),
+    ]
+    .spacing(SpaceToken::Sm.px())
+    .align_y(Alignment::Center);
+    if entry.from_enzimos {
+        title = title.push(chrome::enzimos_source_chip());
+    }
+    if entry.has_verified_badge() {
+        title = title.push(chrome::verified_chip());
+    }
+    let text = column![
+        title,
         enz_text(entry.summary.clone())
             .size(TextSize::Footnote)
             .tone(TextTone::Muted)

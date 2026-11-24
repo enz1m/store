@@ -72,7 +72,8 @@ impl Store {
     // Indexed metadata also covers installed apps absent from every editorial rail.
     pub(crate) fn enrich_installed(&mut self) {
         for row in &mut self.installed {
-            if from_enzimos_remote(&self.remotes, &row.origin, &row.install_scope) {
+            row.from_enzimos = from_enzimos_remote(&self.remotes, &row.origin, &row.install_scope);
+            if row.from_enzimos {
                 if let Some(metadata) = self.enzimos_apps.iter().find(|entry| entry.id == row.id) {
                     if row.icon_image.is_none() {
                         row.icon_image = metadata.icon_image.clone();

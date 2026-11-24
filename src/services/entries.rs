@@ -28,6 +28,9 @@ pub(crate) struct AppEntry {
     pub update_available: bool,
     /// Catalogue publisher verification does not attest an installed deployment.
     pub verified: bool,
+    /// Source established by the configured, signature-checking enzim Apps remote.
+    #[serde(skip)]
+    pub from_enzimos: bool,
     /// Optional publisher / developer name; renders under the app title on the
     /// detail page.
     pub publisher: String,
@@ -63,6 +66,10 @@ pub(crate) struct AppEntry {
 }
 
 impl AppEntry {
+    pub(crate) fn has_verified_badge(&self) -> bool {
+        self.verified || self.from_enzimos
+    }
+
     /// Whether removal leaves an installation this build cannot modify.
     #[must_use]
     pub(crate) fn system_copy_remains(&self) -> bool {

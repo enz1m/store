@@ -261,6 +261,12 @@ impl Store {
                     self.installed_known = true;
                     self.enrich_installed();
                     self.apply_pending_update_scan();
+                    if self.search_popup_open {
+                        return Task::batch([
+                            self.refresh_search_popup(),
+                            self.pump_deferred_owned_read(),
+                        ]);
+                    }
                 }
                 Err(error) => self.last_error = Some(error),
             }
@@ -394,7 +400,13 @@ impl Store {
                     self.remotes_load = services::RemoteLoad::Loaded;
                     if let Some(apps) = inventory.enzimos_apps {
                         self.enzimos_apps = apps;
-                        self.enrich_installed();
+                    }
+                    self.enrich_installed();
+                    if self.search_popup_open {
+                        return Task::batch([
+                            self.refresh_search_popup(),
+                            self.pump_deferred_owned_read(),
+                        ]);
                     }
                 }
                 Err(error) => {

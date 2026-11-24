@@ -126,6 +126,7 @@ app-removed-policy-restriction-5d94f1 = Removed policy restriction
 app-rename-3064d7 = Rename
 app-replace-95e154 = Replace
 app-repository-url-c83db0 = Repository URL
+app-repository-verified = Repository verified
 app-requested-access-823034 = Requested access
 app-reset-to-defaults-0953e0 = Reset to Defaults
 app-retire-da8597 = Retire

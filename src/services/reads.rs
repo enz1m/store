@@ -360,6 +360,7 @@ fn parse_enzimos_apps(raw: &str) -> Vec<AppEntry> {
                 version: display(version),
                 branch: branch.clone(),
                 origin: ENZIMOS_REPOSITORY.origin.into(),
+                from_enzimos: true,
                 ..Default::default()
             })
         })

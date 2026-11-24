@@ -29,8 +29,7 @@ use std::rc::Rc;
 /// Optional row content follows the available width.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum RowDensity {
-    /// Phone. Icon-only actions, and the subtitle is a single line: version
-    /// and size only.
+    /// Phone. Icon-only actions and a compact subtitle.
     Narrow,
     /// Small laptop / tablet. Icon-only actions; the update chip is back.
     Compact,

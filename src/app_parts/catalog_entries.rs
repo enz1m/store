@@ -156,6 +156,7 @@ impl Store {
         for e in self
             .enzimos_apps
             .iter()
+            .chain(self.installed.iter().filter(|entry| entry.from_enzimos))
             .chain(self.catalog_index.entries())
             .chain(self.catalog.popular.iter())
             .chain(self.catalog.trending.iter())

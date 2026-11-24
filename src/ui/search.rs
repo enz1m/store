@@ -191,14 +191,8 @@ fn catalogue_row<'a>(
     // Installation state belongs only to the trailing slot.
     let subtitle: Element<Message> = chrome::AppRowSubtitle::<Message>::new(entry.id.clone())
         .summary(entry.summary.clone())
-        .stack(density.shows_installs())
-        .push_chip_if(entry.verified, || {
-            chrome::icon_chip(
-                "badge-check",
-                crate::i18n::label("Verified"),
-                ChipTone::Success,
-            )
-        })
+        .stack(density.shows_installs() || entry.from_enzimos)
+        .app_badges(entry)
         .push_chip_if(!installs.is_empty(), || {
             chrome::icon_chip("download", installs.clone(), ChipTone::Muted)
         })

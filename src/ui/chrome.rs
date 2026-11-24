@@ -125,6 +125,18 @@ pub(crate) fn icon_chip<'a, Message: 'a>(
     state_chip(icon, label, tone, true)
 }
 
+pub(crate) fn enzimos_source_chip<'a, Message: 'a>() -> Element<'a, Message> {
+    icon_chip("package", "enzim Apps", ChipTone::Accent)
+}
+
+pub(crate) fn verified_chip<'a, Message: 'a>() -> Element<'a, Message> {
+    icon_chip(
+        "badge-check",
+        crate::i18n::label("Verified"),
+        ChipTone::Success,
+    )
+}
+
 /// A chip whose `label` is always its accessible name, drawn only when
 /// `labelled`.
 ///
@@ -210,8 +222,7 @@ pub(crate) fn app_icon<'a, Message: 'a>(
 pub(crate) const ROW_CONTENT_MAX_WIDTH: f32 = 960.0;
 
 /// Compose an app-row subtitle from summary, metadata chips, and an app-id fallback.
-/// Empty content uses the fallback; non-stacked rows use one summary line.
-/// Stacking is reserved for wide rows because narrow rows have a fixed single-line height.
+/// Empty content uses the fallback. Non-stacked rows prefer the summary over chips.
 #[must_use]
 pub(crate) struct AppRowSubtitle<'a, Message: 'a + Clone> {
     chips: Vec<Element<'a, Message>>,
@@ -238,11 +249,7 @@ impl<'a, Message: 'a + Clone> AppRowSubtitle<'a, Message> {
         self
     }
 
-    /// Whether a non-empty summary is allowed to *stack* above the chip strip
-    /// (two lines). At narrow / compact rungs a caller passes `false` so the
-    /// row fits the fixed 64 px [`ROW_HEIGHT`] with the summary on one line
-    /// and the chips dropped in favour of the summary text — the same fit
-    /// search enforced with `!density.shows_installs()`.
+    /// Allow the summary and chips to occupy separate lines.
     pub(crate) fn stack(mut self, stack: bool) -> Self {
         self.stack = stack;
         self
@@ -261,6 +268,11 @@ impl<'a, Message: 'a + Clone> AppRowSubtitle<'a, Message> {
         F: FnOnce() -> Element<'a, Message>,
     {
         if cond { self.push_chip(chip()) } else { self }
+    }
+
+    pub(crate) fn app_badges(self, entry: &crate::services::AppEntry) -> Self {
+        self.push_chip_if(entry.from_enzimos, enzimos_source_chip)
+            .push_chip_if(entry.has_verified_badge(), verified_chip)
     }
 
     /// Compose the subtitle Element. The empty-band case is impossible by
@@ -285,8 +297,6 @@ impl<'a, Message: 'a + Clone> AppRowSubtitle<'a, Message> {
             return strip.into();
         }
         if !self.stack {
-            // Narrow / compact: one line only. Stacking summary above chips
-            // would overflow the fixed 64 px `ROW_HEIGHT`.
             return muted_line(self.summary);
         }
 

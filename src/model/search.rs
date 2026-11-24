@@ -59,7 +59,7 @@ pub(crate) fn search_rows_from<'a>(
         return Vec::new();
     }
 
-    let mut best: Vec<(u32, AppEntry)> = Vec::new();
+    let mut best = Vec::<((bool, u32), AppEntry)>::new();
     for entry in candidates {
         let score = relevance_score(entry, &q);
         if score == 0 {
@@ -69,7 +69,7 @@ pub(crate) fn search_rows_from<'a>(
         entry.installed = installed_ids.iter().any(|i| i == &entry.id);
         entry.update_available = updates.iter().any(|u| u == &entry.id);
 
-        if filters.verified_only && !entry.verified {
+        if filters.verified_only && !entry.has_verified_badge() {
             continue;
         }
         if filters.foss_only && !is_foss(&entry.license) {
@@ -82,10 +82,11 @@ pub(crate) fn search_rows_from<'a>(
             continue;
         }
 
+        let rank = (entry.from_enzimos, score);
         match best.iter_mut().find(|(_, e)| e.id == entry.id) {
-            Some(slot) if slot.0 < score => *slot = (score, entry),
+            Some(slot) if slot.0 < rank => *slot = (rank, entry),
             Some(_) => {}
-            None => best.push((score, entry)),
+            None => best.push((rank, entry)),
         }
     }
 

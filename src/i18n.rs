@@ -287,6 +287,7 @@ const MESSAGES: &[(&str, &str)] = &[
     ("Replace", "app-replace-95e154"),
     ("Replace {} with {}", "app-replace-with-3199cb"),
     ("Repository URL", "app-repository-url-c83db0"),
+    ("Repository verified", "app-repository-verified"),
     ("Requested access", "app-requested-access-823034"),
     ("Reset to Defaults", "app-reset-to-defaults-0953e0"),
     ("Retire", "app-retire-da8597"),

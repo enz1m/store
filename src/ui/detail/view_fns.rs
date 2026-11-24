@@ -394,7 +394,18 @@ fn detail_card<'a>(content: Element<'a, Message>) -> Element<'a, Message> {
 /// or failure disclosure (and Retry) when the answer is not current.
 fn publisher_verification<'a>(store: &'a Store, app_id: &str, name: &str) -> Element<'a, Message> {
     if store.detail_from_enzimos(app_id) {
-        return chrome::icon_chip("package", "enzim Apps", chrome::ChipTone::Muted);
+        return row![
+            chrome::enzimos_source_chip(),
+            chrome::icon_chip(
+                "badge-check",
+                crate::i18n::label("Repository verified"),
+                chrome::ChipTone::Success,
+            ),
+        ]
+        .spacing(SpaceToken::Sm.px())
+        .align_y(Alignment::Center)
+        .wrap()
+        .into();
     }
     // Only the enrichment verdict establishes verification; absent context remains pending without Retry.
     let publisher_verification = store

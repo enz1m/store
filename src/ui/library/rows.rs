@@ -29,15 +29,19 @@ pub(crate) fn installed_row<'a>(
         entry.update_available && update.is_some_and(crate::services::Authorization::is_allowed);
     // Shared subtitle fallback prevents an empty band when every metadata chip is absent.
     let subtitle = chrome::AppRowSubtitle::<Message>::new(entry.id.clone())
-        .push_chip_if(!entry.version.is_empty(), || {
-            chrome::icon_chip("tag", entry.version.clone(), ChipTone::Muted)
-        })
-        .push_chip_if(!entry.size.is_empty(), || {
-            chrome::icon_chip("hard-drive", entry.size.clone(), ChipTone::Muted)
-        })
-        .push_chip_if(density.shows_origin() && !entry.origin.is_empty(), || {
-            chrome::icon_chip("server", entry.origin.clone(), ChipTone::Muted)
-        })
+        .app_badges(entry)
+        .push_chip_if(
+            (!entry.from_enzimos || density.shows_origin()) && !entry.version.is_empty(),
+            || chrome::icon_chip("tag", entry.version.clone(), ChipTone::Muted),
+        )
+        .push_chip_if(
+            (!entry.from_enzimos || density.shows_origin()) && !entry.size.is_empty(),
+            || chrome::icon_chip("hard-drive", entry.size.clone(), ChipTone::Muted),
+        )
+        .push_chip_if(
+            !entry.from_enzimos && density.shows_origin() && !entry.origin.is_empty(),
+            || chrome::icon_chip("server", entry.origin.clone(), ChipTone::Muted),
+        )
         .push_chip_if(
             entry.update_available && !update_offered && density.shows_update_chip(),
             || {

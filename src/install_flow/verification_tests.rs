@@ -34,13 +34,61 @@ fn offline_home_and_detail_use_the_installed_apps_repository() {
     };
     store.installed = vec![other.clone(), official.clone()];
     assert_eq!(store.enzimos_home_entries(), vec![&official]);
+    store.enrich_installed();
+    assert!(!store.installed[0].has_verified_badge());
+    assert!(store.installed[1].has_verified_badge());
 
     let _ = store.update(Message::open_app_detail(&official));
     assert_eq!(label_count(&nodes(&store), "enzim Apps"), 1);
+    assert_eq!(label_count(&nodes(&store), "Repository verified"), 1);
     assert!(!store.detail_metadata_authorized);
 
     let _ = store.update(Message::open_app_detail(&other));
     assert_eq!(label_count(&nodes(&store), "enzim Apps"), 0);
+}
+
+#[test]
+fn search_promotes_verified_enzimos_apps_when_the_catalogue_arrives() {
+    use crate::services::{ENZIMOS_REPOSITORY, RemoteInfo, RepositoryInventory};
+
+    let mut store = browse_store();
+    let mut external = app("org.test.Calculator", "Calculator");
+    external.verified = true;
+    store.catalog.popular = vec![external, app("org.test.CalculatorPlus", "Calculator Plus")];
+    store.route = Route::Search;
+    store.search_popup_open = true;
+    let _ = store.update(Message::SearchPopupInput("calculator".into()));
+    assert_eq!(store.rows()[0].id, "org.test.Calculator");
+
+    let official = AppEntry {
+        from_enzimos: true,
+        origin: ENZIMOS_REPOSITORY.origin.into(),
+        ..app("org.enzimos.Calculator", "enzim Calculator")
+    };
+    let _ = store.update(Message::OwnedRemotesLoaded {
+        request: store.remotes_read_request,
+        result: Ok(RepositoryInventory {
+            remotes: vec![RemoteInfo {
+                name: ENZIMOS_REPOSITORY.origin.into(),
+                url: ENZIMOS_REPOSITORY.url.into(),
+                options: "user".into(),
+                ..Default::default()
+            }],
+            enzimos_apps: Some(vec![official]),
+        }),
+    });
+    assert_eq!(store.rows()[0].id, "org.enzimos.Calculator");
+    assert_eq!(store.search_popup_results[0].id, "org.enzimos.Calculator");
+
+    let _ = store.update(Message::ToggleVerifiedOnly);
+    assert_eq!(
+        store
+            .rows()
+            .iter()
+            .map(|entry| entry.id.as_str())
+            .collect::<Vec<_>>(),
+        ["org.enzimos.Calculator", "org.test.Calculator"],
+    );
 }
 
 #[test]
