@@ -44,7 +44,7 @@ impl Authorization {
 }
 
 /// Authorize a fresh install only when a loaded repository positively matches the origin.
-/// Known catalog origins match by name or published URL; other origins match by name only.
+/// Known catalog origins match only by published URL; other origins match by name.
 /// User scope wins a positive match; loading, failed, missing, and system-only sources refuse.
 #[must_use]
 pub(crate) fn install_authorization(

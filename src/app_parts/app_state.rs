@@ -44,6 +44,7 @@ pub(crate) struct Store {
 
     // Permission reads run asynchronously; the view never launches Flatpak.
     pub(crate) detail_permissions: PermissionRead,
+    pub(crate) detail_permissions_await_remotes: bool,
     pub(crate) permissions_dialog_open: bool,
     // Focus owner stored for exactly the live read-only permissions dialog.
     pub(crate) permissions_focus: Option<enzui_widgets::modal_host::ModalFocusLifecycle>,

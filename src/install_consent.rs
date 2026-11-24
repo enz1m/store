@@ -71,23 +71,17 @@ impl Store {
         } else {
             None
         };
-        let remote = if let Some(removed) = &removed {
-            removed
-                .current_remote(&self.remotes)
-                .filter(|_| removed.scope == services::InstallScope::User)
-                .map(|remote| remote.name.clone())
-        } else {
+        let remote = if kind == OpKind::Update {
             let origin = origin.unwrap_or_default();
             self.remotes
                 .iter()
                 .find(|remote| {
                     services::InstallScope::from_remote_options(&remote.options) == wanted
-                        && if kind == OpKind::Update {
-                            remote.name == origin
-                        } else {
-                            services::matches_catalog_origin(remote, &origin)
-                        }
+                        && remote.name == origin
                 })
+                .map(|remote| remote.name.clone())
+        } else {
+            self.install_remote(&app_id)
                 .map(|remote| remote.name.clone())
         };
         let Some(remote) = remote else {

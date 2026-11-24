@@ -162,7 +162,7 @@ fn rendered_labels(store: &Store) -> Vec<String> {
 #[test]
 fn every_flatpak_effect_boundary_rejects_invalid_app_id_before_execution() {
     let executor = ParsingExecutor::default();
-    assert!(services::read_permissions_with_executor(&executor, "--reset").is_err());
+    assert!(services::read_permissions_with_executor(&executor, "--reset", None).is_err());
     assert!(services::read_overrides_with_executor(&executor, "--reset").is_err());
     assert!(
         services::apply_permission_override_with(&executor, "--reset", "network", true).is_err()

@@ -17,11 +17,12 @@ impl Store {
         }
         self.remotes_load =
             services::RemoteLoad::Failed(read_terminal_text("Repository read", terminal));
+        let permission_read = self.resume_detail_permission_read();
         if terminal == flatpak::ReadTaskError::Busy {
             self.retain_deferred_owned_read(intent);
-            Task::none()
+            permission_read
         } else {
-            self.pump_deferred_owned_read()
+            Task::batch([permission_read, self.pump_deferred_owned_read()])
         }
     }
 

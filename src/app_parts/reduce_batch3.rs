@@ -393,6 +393,7 @@ impl Store {
         result: Result<services::RepositoryInventory, String>,
     ) -> Task<Message> {
         self.deferred_owned_reads.retry_settled(request);
+        let mut permission_read = Task::none();
         if request == self.remotes_read_request {
             match result {
                 Ok(inventory) => {
@@ -404,6 +405,7 @@ impl Store {
                     self.enrich_installed();
                     if self.search_popup_open {
                         return Task::batch([
+                            self.resume_detail_permission_read(),
                             self.refresh_search_popup(),
                             self.pump_deferred_owned_read(),
                         ]);
@@ -413,7 +415,8 @@ impl Store {
                     self.remotes_load = services::RemoteLoad::Failed(error);
                 }
             }
+            permission_read = self.resume_detail_permission_read();
         }
-        self.pump_deferred_owned_read()
+        Task::batch([permission_read, self.pump_deferred_owned_read()])
     }
 }

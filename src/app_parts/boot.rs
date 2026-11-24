@@ -153,6 +153,7 @@ impl Store {
             detail_metadata_authorized: false,
             detail_cancellation: services::OperationCancellation::default(),
             detail_permissions: PermissionRead::Loading,
+            detail_permissions_await_remotes: false,
             permissions_dialog_open: false,
             permissions_focus: None,
             ratings_breakdown_open: false,

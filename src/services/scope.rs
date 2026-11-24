@@ -145,7 +145,7 @@ impl<'a> RepositoryAnswer<'a> {
     }
 }
 
-/// Match catalogue sources by URL as well as configurable local remote name.
+/// A catalogue source, matched by URL whatever the local remote is named.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct CatalogRepository {
     /// The conventional remote name, which is also the `origin` this app's
@@ -172,17 +172,20 @@ const KNOWN_CATALOG_REPOSITORIES: &[CatalogRepository] =
     &[FLATHUB_REPOSITORY, ENZIMOS_REPOSITORY];
 
 pub(crate) fn matches_catalog_origin(remote: &RemoteInfo, origin: &str) -> bool {
-    let url_matches = KNOWN_CATALOG_REPOSITORIES
+    let Some(repository) = KNOWN_CATALOG_REPOSITORIES
         .iter()
         .find(|repository| repository.origin == origin)
-        .is_some_and(|repository| normalise_repository_url(&remote.url) ==
-            normalise_repository_url(repository.url));
+    else {
+        return remote.name == origin;
+    };
+    let url_matches =
+        normalise_repository_url(&remote.url) == normalise_repository_url(repository.url);
     if origin == ENZIMOS_REPOSITORY.origin {
         url_matches && !remote.options.split(',').any(|flag| {
             matches!(flag.trim(), "disabled" | "noenumerate" | "no-gpg-verify")
         })
     } else {
-        remote.name == origin || url_matches
+        url_matches
     }
 }
 

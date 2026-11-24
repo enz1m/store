@@ -191,29 +191,11 @@ impl Store {
         // Tag the completion with the generation in force now, so a
         // navigation after this click supersedes the retry and its
         // completion is refused rather than published onto the new page.
-        let generation = self.detail_generation;
-        let perm_app = app_id.clone();
-        let perm_label = app_id;
-        let cancellation = self.detail_cancellation.clone();
-        let task = self.detail_owner.submit(generation, move |ctx| {
-            services::read_permissions_cancellable(
-                &perm_app,
-                cancellation.with_blocking_context(ctx),
-            )
-        });
-        let refused = perm_label.clone();
-        read_pool_task(
-            task,
-            move |result| Message::PermissionsLoaded {
-                app_id: perm_label,
-                generation,
-                result,
-            },
-            move |_| Message::PermissionsLoaded {
-                app_id: refused,
-                generation,
-                result: Err("detail read unavailable".to_owned()),
-            },
+        self.detail_permission_read(
+            app_id,
+            self.detail_generation,
+            self.detail_cancellation.clone(),
+            self.detail_owner.dispatcher(),
         )
     }
 

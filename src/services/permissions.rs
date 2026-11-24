@@ -1,16 +1,29 @@
+/// The repository whose metadata describes an app that is not installed.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct MetadataRemote {
+    pub name: String,
+    pub system: bool,
+}
+
 pub(crate) fn read_permissions_cancellable(
     app_id: &str,
+    remote: Option<&MetadataRemote>,
     cancellation: OperationCancellation,
 ) -> Result<Permissions, String> {
     if fixture_enabled() {
         return Ok(fixture_permissions());
     }
-    read_permissions_with_executor(&ProcessFlatpakExecutor::cancellable(cancellation), app_id)
+    read_permissions_with_executor(
+        &ProcessFlatpakExecutor::cancellable(cancellation),
+        app_id,
+        remote,
+    )
 }
 
 pub(crate) fn read_permissions_with_executor(
     executor: &dyn FlatpakExecutor,
     app_id: &str,
+    remote: Option<&MetadataRemote>,
 ) -> Result<Permissions, String> {
     // Prefer the installed copy (`--user` scope first, falling back to system).
     let mut user_info = crate::flatpak_args::FlatpakArgs::new("info");
@@ -19,24 +32,17 @@ pub(crate) fn read_permissions_with_executor(
     let mut info = crate::flatpak_args::FlatpakArgs::new("info");
     info.options(["--show-metadata"]);
     info.app_id(app_id)?;
-    let mut remote_info = crate::flatpak_args::FlatpakArgs::new("remote-info");
-    remote_info.options(["--user", "--show-metadata"]);
-    remote_info.remote("flathub")?;
-    remote_info.app_id(app_id)?;
-    // Flathub is often configured only system-wide, or the user copy of it
-    // can be broken; either way the system installation's copy answers.
-    let mut system_remote_info = crate::flatpak_args::FlatpakArgs::new("remote-info");
-    system_remote_info.options(["--system", "--show-metadata"]);
-    system_remote_info.remote("flathub")?;
-    system_remote_info.app_id(app_id)?;
+    let mut sources = vec![user_info.finish(), info.finish()];
+    if let Some(remote) = remote {
+        let scope = if remote.system { "--system" } else { "--user" };
+        let mut remote_info = crate::flatpak_args::FlatpakArgs::new("remote-info");
+        remote_info.options([scope, "--show-metadata"]);
+        remote_info.remote(&remote.name)?;
+        remote_info.app_id(app_id)?;
+        sources.push(remote_info.finish());
+    }
     // Fall through only on a complete, explicit absence; a terminal failure
-    // stops here, and one shared deadline bounds all four sources together.
-    let sources = [
-        user_info.finish(),
-        info.finish(),
-        remote_info.finish(),
-        system_remote_info.finish(),
-    ];
+    // stops here, and one shared deadline bounds all sources together.
     let deadline = Instant::now() + PERMISSION_READ_TOTAL_DEADLINE;
     for args in &sources {
         match executor.read_metadata_step(args, deadline) {
@@ -155,7 +161,7 @@ pub(crate) fn build_permission_toggles_with_executor(
     // The editable model is authoritative only when both the base metadata and
     // the override state are read cleanly. If either is unknown the model is
     // unavailable, never a fabricated all-disabled set opened for editing.
-    let Ok(base) = read_permissions_with_executor(executor, app_id) else {
+    let Ok(base) = read_permissions_with_executor(executor, app_id, None) else {
         return PermissionTogglesOutcome::Unavailable;
     };
     let Ok(overrides) = read_overrides_with_executor(executor, app_id) else {

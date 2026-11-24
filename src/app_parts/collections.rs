@@ -141,7 +141,7 @@ impl Store {
         reason = "Dispatch independent reads with the same captured detail identity"
     )]
     pub(crate) fn detail_open_tasks(
-        &self,
+        &mut self,
         cache: Option<roots::CacheCapability>,
         app_id: String,
         origin: String,
@@ -162,23 +162,19 @@ impl Store {
                     ..Default::default()
                 })
         });
-        let perm_app = app_id.clone();
-        let perm_label = app_id.clone();
+        let permission_read = self.detail_permission_read(
+            app_id.clone(),
+            generation,
+            cancellation.clone(),
+            read_pool.clone(),
+        );
         let ctx_app = app_id.clone();
         let ctx_label = app_id;
         let ctx_cache = cache;
-        let permission_cancellation = cancellation.clone();
         let context_cancellation = cancellation;
         let ctx_origin = origin;
         let ctx_scope = scope;
         let ctx_scope_identity = scope_identity;
-        let permission_task = read_pool.submit(generation, move |ctx| {
-            services::read_permissions_cancellable(
-                &perm_app,
-                permission_cancellation.with_blocking_context(ctx),
-            )
-        });
-        let permission_refused = perm_label.clone();
         let context_task = read_pool.submit(generation, move |ctx| {
             if let Some(official) = official_context {
                 return official;
@@ -196,19 +192,7 @@ impl Store {
         });
         let context_refused = ctx_label.clone();
         vec![
-            read_pool_task(
-                permission_task,
-                move |result| Message::PermissionsLoaded {
-                    app_id: perm_label,
-                    generation,
-                    result,
-                },
-                move |_| Message::PermissionsLoaded {
-                    app_id: permission_refused,
-                    generation,
-                    result: Err("detail read unavailable".to_owned()),
-                },
-            ),
+            permission_read,
             read_pool_task(
                 context_task,
                 move |context| Message::DetailContextLoaded {
@@ -223,6 +207,60 @@ impl Store {
                 },
             ),
         ]
+    }
+
+    // Remote metadata waits for the repository list so it describes the remote an install uses.
+    pub(crate) fn detail_permission_read(
+        &mut self,
+        app_id: String,
+        generation: u64,
+        cancellation: services::OperationCancellation,
+        read_pool: enzui_core::blocking_task::BlockingTaskDispatcher,
+    ) -> Task<Message> {
+        self.detail_permissions_await_remotes =
+            matches!(self.remotes_load, services::RemoteLoad::Loading);
+        if self.detail_permissions_await_remotes {
+            return Task::none();
+        }
+        let remote = self.metadata_remote(&app_id);
+        let label = app_id.clone();
+        let task = read_pool.submit(generation, move |ctx| {
+            services::read_permissions_cancellable(
+                &app_id,
+                remote.as_ref(),
+                cancellation.with_blocking_context(ctx),
+            )
+        });
+        let refused = label.clone();
+        read_pool_task(
+            task,
+            move |result| Message::PermissionsLoaded {
+                app_id: label,
+                generation,
+                result,
+            },
+            move |_| Message::PermissionsLoaded {
+                app_id: refused,
+                generation,
+                result: Err("detail read unavailable".to_owned()),
+            },
+        )
+    }
+
+    pub(crate) fn resume_detail_permission_read(&mut self) -> Task<Message> {
+        if !self.detail_permissions_await_remotes {
+            return Task::none();
+        }
+        let Some(app_id) = self.detail_app_id.clone() else {
+            self.detail_permissions_await_remotes = false;
+            return Task::none();
+        };
+        self.detail_permission_read(
+            app_id,
+            self.detail_generation,
+            self.detail_cancellation.clone(),
+            self.detail_owner.dispatcher(),
+        )
     }
 }
 

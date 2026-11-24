@@ -99,6 +99,49 @@ impl Store {
         }
     }
 
+    // Consent and permission reads resolve a fresh install's repository the same way.
+    pub(crate) fn install_remote(&self, app_id: &str) -> Option<&services::RemoteInfo> {
+        let origin = self
+            .installed
+            .iter()
+            .find(|entry| entry.id == app_id && entry.install_scope == services::InstallScope::User)
+            .map(|entry| entry.origin.clone())
+            .or_else(|| self.app_entry(app_id).map(|entry| entry.origin));
+        match origin {
+            Some(origin) => self.remotes.iter().find(|remote| {
+                services::InstallScope::from_remote_options(&remote.options)
+                    == services::InstallScope::User
+                    && services::matches_catalog_origin(remote, &origin)
+            }),
+            None => self
+                .removed_origin(app_id)
+                .filter(|removed| removed.scope == services::InstallScope::User)
+                .and_then(|removed| removed.current_remote(&self.remotes)),
+        }
+    }
+
+    // An origin only a system repository carries is still described by that repository.
+    pub(crate) fn metadata_remote(&self, app_id: &str) -> Option<services::MetadataRemote> {
+        if let Some(remote) = self.install_remote(app_id) {
+            return Some(services::MetadataRemote {
+                name: remote.name.clone(),
+                system: false,
+            });
+        }
+        let origin = self.app_entry(app_id)?.origin;
+        self.remotes
+            .iter()
+            .find(|remote| {
+                services::InstallScope::from_remote_options(&remote.options)
+                    == services::InstallScope::System
+                    && services::matches_catalog_origin(remote, &origin)
+            })
+            .map(|remote| services::MetadataRemote {
+                name: remote.name.clone(),
+                system: true,
+            })
+    }
+
     // A source recorded at removal applies only when neither an installed row nor the catalogue names one.
     pub(crate) fn removed_origin(&self, app_id: &str) -> Option<&services::RemovedOrigin> {
         self.recently_uninstalled
