@@ -167,6 +167,24 @@ impl Store {
         }
     }
 
+    fn abandon_pending_updates(&mut self) {
+        use enzui_widgets::toast::ToastTone;
+        use enzui_widgets::toast_host::ToastSpec;
+        let skipped: Vec<String> = self
+            .pending_update_reviews
+            .drain(..)
+            .map(|(_, name)| name)
+            .collect();
+        if skipped.is_empty() {
+            return;
+        }
+        let spec = ToastSpec::new(crate::i18n::label("Remaining updates were not started"))
+            .description(skipped.join(", "))
+            .tone(ToastTone::Warning)
+            .coalesce_key("store-update-all-skipped");
+        self.toasts.push(spec);
+    }
+
     // Finished operation history carries refusals to the normal failure surfaces.
     pub(crate) fn refuse_operation(
         &mut self,
@@ -482,7 +500,7 @@ impl Store {
                         if succeeded {
                             self.start_next_update_review()
                         } else {
-                            self.pending_update_reviews.clear();
+                            self.abandon_pending_updates();
                             Task::none()
                         }
                     } else {

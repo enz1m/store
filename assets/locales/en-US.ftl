@@ -478,3 +478,4 @@ app-programs-started-when-you-sign-in-8df947 = Programs started when you sign in
 app-start-any-program-on-this-computer-without-the-sandbox-s-limits-71f064 = Start any program on this computer without the sandbox's limits.
 app-programs-outside-the-sandbox-6df9c9 = Programs outside the sandbox
 app-can-access-and-count-more-e4708e = Can access: { $arg0 } and { $count } more.
+app-remaining-updates-were-not-started-471256 = Remaining updates were not started

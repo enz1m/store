@@ -536,6 +536,7 @@ const MESSAGES: &[(&str, &str)] = &[
     ("Start any program on this computer without the sandbox's limits.", "app-start-any-program-on-this-computer-without-the-sandbox-s-limits-71f064"),
     ("Programs outside the sandbox", "app-programs-outside-the-sandbox-6df9c9"),
     ("Can access: {} and {count} more.", "app-can-access-and-count-more-e4708e"),
+    ("Remaining updates were not started", "app-remaining-updates-were-not-started-471256"),
 ];
 
 pub(crate) fn count(key: &str, count: usize) -> String {

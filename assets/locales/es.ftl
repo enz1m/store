@@ -478,3 +478,4 @@ app-programs-started-when-you-sign-in-8df947 = Programas que se inician al inici
 app-start-any-program-on-this-computer-without-the-sandbox-s-limits-71f064 = Iniciar cualquier programa en este equipo sin los límites del aislamiento.
 app-programs-outside-the-sandbox-6df9c9 = Programas fuera del aislamiento
 app-can-access-and-count-more-e4708e = Puede acceder a: { $arg0 } y { $count } más.
+app-remaining-updates-were-not-started-471256 = Las actualizaciones restantes no se iniciaron
