@@ -224,11 +224,11 @@ impl Store {
                     return Task::none();
                 }
                 consent.restrictions = restrictions(&plan, &consent.app_id);
+                let unattended = confirms_without_review(&plan);
                 consent.plan = Some(plan);
-                // Install and Update act at once with the app's requested access; people
-                // restrict it later from the app's permissions. The review still pins the
-                // exact app and version, and a failed review is shown instead of installing.
-                return self.confirm_install_consent();
+                if unattended {
+                    return self.confirm_install_consent();
+                }
             }
             Err(error) => consent.error = Some(error),
         }
@@ -299,6 +299,30 @@ impl Store {
             self.start_operation(consent.app_id, consent.name, consent.kind),
         ])
     }
+}
+
+// Whether the plan's repository and every package source verify signatures.
+fn signatures_verified(plan: &Value) -> bool {
+    plan["remote"]["gpg_verify"] == true
+        && plan["operations"].as_array().is_some_and(|operations| {
+            operations
+                .iter()
+                .all(|operation| operation["remote_identity"]["gpg_verify"] == true)
+        })
+}
+
+// Whether an update plan asks for access the installed version did not have.
+fn adds_access(plan: &Value) -> bool {
+    plan["requires_consent"] != false
+        || plan["permission_additions"]
+            .as_array()
+            .is_none_or(|additions| !additions.is_empty())
+}
+
+/// Whether a reviewed plan may proceed without the person confirming it: it is
+/// signed throughout and, for an update, requests no new access.
+pub(crate) fn confirms_without_review(plan: &Value) -> bool {
+    signatures_verified(plan) && (plan["action"] != "update" || !adds_access(plan))
 }
 
 /// A pinned reinstall's review must resolve the app on the recorded branch and arch.
@@ -533,12 +557,7 @@ pub(crate) fn present<'a>(
         );
     } else if let Some(plan) = &consent.plan {
         // Trust warnings lead: they qualify everything below them.
-        if plan["remote"]["gpg_verify"] == false
-            || plan["operations"].as_array().is_some_and(|ops| {
-                ops.iter()
-                    .any(|op| op["remote_identity"]["gpg_verify"] == false)
-            })
-        {
+        if !signatures_verified(plan) {
             body = body.push(
                 enz_banner(crate::i18n::label("Unsigned source"))
                     .body(crate::i18n::label("One or more package sources do not verify signatures. Install only if you trust these sources."))
@@ -548,7 +567,7 @@ pub(crate) fn present<'a>(
             );
         }
 
-        if update {
+        if update && adds_access(plan) {
             let mut changes = column![
                 chrome::section_label(crate::i18n::label("New access in this update")),
                 muted(crate::i18n::label("This update changes requested access. Your existing restrictions remain in place.").to_owned()),
@@ -870,6 +889,85 @@ mod tests {
             assert!(store.confirmed_install.is_none());
             assert!(store.operations.is_empty());
         }
+    }
+
+    fn signed_install_plan(consent: &Consent) -> Value {
+        json!({"schema_version":1,"review_token":"a".repeat(64),"remote":{"name":consent.remote,"gpg_verify":true},
+            "operations":[{"type":"install","ref":format!("app/{}/x86_64/stable",consent.app_id),"commit":"b".repeat(64),
+                "remote_identity":{"gpg_verify":true},"metadata":{"Context":{"shared":"network;"}}}],"override_sources":[]})
+    }
+
+    #[test]
+    fn only_signed_plans_without_new_access_skip_confirmation() {
+        let install = json!({"remote":{"gpg_verify":true},"operations":[
+            {"remote_identity":{"gpg_verify":true}},{"remote_identity":{"gpg_verify":true}}]});
+        assert!(confirms_without_review(&install));
+        for (pointer, value) in [
+            ("/remote/gpg_verify", json!(false)),
+            ("/operations/1/remote_identity/gpg_verify", json!(false)),
+            ("/operations/0/remote_identity", json!({})),
+        ] {
+            let mut unsigned = install.clone();
+            *unsigned.pointer_mut(pointer).unwrap() = value;
+            assert!(!confirms_without_review(&unsigned), "{pointer}");
+        }
+
+        let mut update = install.clone();
+        update["action"] = json!("update");
+        update["requires_consent"] = json!(false);
+        update["permission_additions"] = json!([]);
+        assert!(confirms_without_review(&update));
+        for (field, value) in [
+            ("requires_consent", json!(true)),
+            ("requires_consent", Value::Null),
+            (
+                "permission_additions",
+                json!([{"group":"Context","key":"devices","requested":"all"}]),
+            ),
+        ] {
+            let mut added = update.clone();
+            added[field] = value;
+            assert!(!confirms_without_review(&added), "{field}");
+        }
+    }
+
+    #[test]
+    fn an_unsigned_review_waits_for_explicit_confirmation() {
+        let mut store = store();
+        let _ = store.update(Message::InstallRequested(
+            "org.test.Consent".into(),
+            "Consent".into(),
+        ));
+        let consent = store.install_consent.as_ref().unwrap();
+        let generation = consent.generation;
+        let mut plan = signed_install_plan(consent);
+        plan["operations"][0]["remote_identity"]["gpg_verify"] = json!(false);
+        let _ = store.install_review_loaded(generation, Ok(plan));
+        assert!(
+            store
+                .install_consent
+                .as_ref()
+                .is_some_and(|c| c.plan.is_some())
+        );
+        assert!(store.operations.is_empty());
+        let _ = store.update(Message::InstallConsentConfirm);
+        assert!(store.install_consent.is_none());
+        assert_eq!(store.operations.len(), 1);
+    }
+
+    #[test]
+    fn a_signed_install_review_proceeds_at_once() {
+        let mut store = store();
+        let _ = store.update(Message::InstallRequested(
+            "org.test.Consent".into(),
+            "Consent".into(),
+        ));
+        let consent = store.install_consent.as_ref().unwrap();
+        let generation = consent.generation;
+        let plan = signed_install_plan(consent);
+        let _ = store.install_review_loaded(generation, Ok(plan));
+        assert!(store.install_consent.is_none());
+        assert_eq!(store.operations.len(), 1);
     }
 
     #[test]
