@@ -18,16 +18,16 @@ center = ["dep:enzui-agent"]
 
 
 [dependencies]
-enzui-activity = { features = ["operation-center"], git = "https://github.com/enz1m/enzui.git", tag = "v0.3.0-alpha.1" }
-enzui-services = { git = "https://github.com/enz1m/enzui.git", tag = "v0.3.0-alpha.1" }
-iced = { default-features = false, features = ["wgpu", "tiny-skia", "crisp", "web-colors", "thread-pool", "linux-theme-detection", "wayland", "svg", "image", "a11y", "tokio"], git = "https://github.com/enz1m/enzim-iced.git", rev = "e36b07b591661fdb666088fc943cc0b927a2367b" }
-iced_renderer = { default-features = false, git = "https://github.com/enz1m/enzim-iced.git", rev = "e36b07b591661fdb666088fc943cc0b927a2367b" }
-enzui-core = { features = ["accesskit"], git = "https://github.com/enz1m/enzui.git", tag = "v0.3.0-alpha.1" }
-enzui-resources = { git = "https://github.com/enz1m/enzui.git", tag = "v0.3.0-alpha.1" }
-enzui-theme = { git = "https://github.com/enz1m/enzui.git", tag = "v0.3.0-alpha.1" }
-enzui-widgets = { features = ["portal-dbus", "application-dbus"], git = "https://github.com/enz1m/enzui.git", tag = "v0.3.0-alpha.1" }
-enzui-parent-lease = { git = "https://github.com/enz1m/enzui.git", tag = "v0.3.0-alpha.1" }
-enzui-agent = { features = ["iced-consumer"], optional = true, git = "https://github.com/enz1m/enzui.git", tag = "v0.3.0-alpha.1" }
+enzui-activity = { features = ["operation-center"], git = "https://github.com/enz1m/enzui.git", rev = "0ed41783775a9bf1b431a7f5b57f782e30210552" }
+enzui-services = { git = "https://github.com/enz1m/enzui.git", rev = "0ed41783775a9bf1b431a7f5b57f782e30210552" }
+iced = { default-features = false, features = ["wgpu", "tiny-skia", "crisp", "web-colors", "thread-pool", "linux-theme-detection", "wayland", "svg", "image", "a11y", "tokio"], git = "https://github.com/enz1m/enzim-iced.git", rev = "523c1755479c55ba4030dafb2be9c05bf8a1def4" }
+iced_renderer = { default-features = false, git = "https://github.com/enz1m/enzim-iced.git", rev = "523c1755479c55ba4030dafb2be9c05bf8a1def4" }
+enzui-core = { features = ["accesskit"], git = "https://github.com/enz1m/enzui.git", rev = "0ed41783775a9bf1b431a7f5b57f782e30210552" }
+enzui-resources = { git = "https://github.com/enz1m/enzui.git", rev = "0ed41783775a9bf1b431a7f5b57f782e30210552" }
+enzui-theme = { git = "https://github.com/enz1m/enzui.git", rev = "0ed41783775a9bf1b431a7f5b57f782e30210552" }
+enzui-widgets = { features = ["portal-dbus", "application-dbus"], git = "https://github.com/enz1m/enzui.git", rev = "0ed41783775a9bf1b431a7f5b57f782e30210552" }
+enzui-parent-lease = { git = "https://github.com/enz1m/enzui.git", rev = "0ed41783775a9bf1b431a7f5b57f782e30210552" }
+enzui-agent = { features = ["iced-consumer"], optional = true, git = "https://github.com/enz1m/enzui.git", rev = "0ed41783775a9bf1b431a7f5b57f782e30210552" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 rustix = { version = "1.1", features = ["fs", "process"] }
@@ -35,10 +35,10 @@ rustix = { version = "1.1", features = ["fs", "process"] }
 resvg = { version = "0.45", default-features = false }
 
 [target.'cfg(target_os = "linux")'.dependencies]
-enzui-wayland = { git = "https://github.com/enz1m/enzui.git", tag = "v0.3.0-alpha.1" }
+enzui-wayland = { git = "https://github.com/enz1m/enzui.git", rev = "0ed41783775a9bf1b431a7f5b57f782e30210552" }
 
 [dev-dependencies]
-iced_test = { git = "https://github.com/enz1m/enzim-iced.git", rev = "e36b07b591661fdb666088fc943cc0b927a2367b" }
+iced_test = { git = "https://github.com/enz1m/enzim-iced.git", rev = "523c1755479c55ba4030dafb2be9c05bf8a1def4" }
 
 [patch.crates-io]
 zbus_macros = { git = "https://github.com/enz1m/enzim-zbus.git", rev = "e182645b56d15e637bb6c8144f99ebfa7f900716" }
