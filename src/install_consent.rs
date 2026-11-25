@@ -237,16 +237,15 @@ impl Store {
 
     pub(crate) fn cancel_install_consent(&mut self) -> Task<Message> {
         self.confirmed_install = None;
-        self.pending_update_reviews.clear();
-        self.install_consent
-            .take()
-            .map_or_else(Task::none, |consent| {
-                consent.cancellation.cancel();
-                consent
-                    .focus
-                    .reduce::<Message>(ModalHostEvent::Dismissed(DismissCause::CancelAction))
-                    .into_task()
-            })
+        let Some(consent) = self.install_consent.take() else {
+            return Task::none();
+        };
+        consent.cancellation.cancel();
+        consent
+            .focus
+            .reduce::<Message>(ModalHostEvent::Dismissed(DismissCause::CancelAction))
+            .into_task()
+            .chain(self.review_next_update_after(consent.kind))
     }
 
     pub(crate) fn install_consent_host(&mut self, event: ModalHostEvent) -> Task<Message> {
@@ -255,13 +254,24 @@ impl Store {
         };
         let outcome = consent.focus.reduce::<Message>(event);
         if outcome.dismissed().is_some() {
+            self.confirmed_install = None;
             if let Some(consent) = self.install_consent.take() {
                 consent.cancellation.cancel();
+                return outcome
+                    .into_task()
+                    .chain(self.review_next_update_after(consent.kind));
             }
-            self.confirmed_install = None;
-            self.pending_update_reviews.clear();
         }
         outcome.into_task()
+    }
+
+    // Declining one update review skips only that app; Update all moves on to the next.
+    fn review_next_update_after(&mut self, declined: OpKind) -> Task<Message> {
+        if declined == OpKind::Update {
+            self.start_next_update_review()
+        } else {
+            Task::none()
+        }
     }
 
     pub(crate) fn block_install_permission(
@@ -820,18 +830,21 @@ mod tests {
     }
 
     #[test]
-    fn cancel_bulk_review_clears_queue_and_late_completion_cannot_update() {
+    fn cancel_bulk_review_skips_only_that_app_and_late_completion_cannot_update() {
         let mut store = update_store();
         let _ = store.update(Message::UpdateAllRequested);
         let consent = store.install_consent.as_ref().unwrap();
         let generation = consent.generation;
         let plan = update_plan(consent, false);
-        assert_eq!(store.pending_update_reviews.len(), 1);
+        assert_eq!(consent.app_id, "org.test.First");
         let _ = store.cancel_install_consent();
         let _ = store.install_review_loaded(generation, Ok(plan));
         assert!(store.operations.is_empty());
         assert!(store.pending_update_reviews.is_empty());
         assert!(store.confirmed_install.is_none());
+        let next = store.install_consent.as_ref().expect("next review opens");
+        assert_eq!(next.app_id, "org.test.Second");
+        assert_ne!(next.generation, generation);
     }
 
     #[test]
