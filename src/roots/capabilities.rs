@@ -67,7 +67,7 @@ pub(crate) struct CacheCapability {
     root: Arc<SecureDir>,
     root_path: PathBuf,
     icons: Arc<SecureDir>,
-    _catalogs: Arc<SecureDir>,
+    catalogs: Arc<SecureDir>,
     catalogs_path: PathBuf,
     screenshots: Arc<SecureDir>,
     catalog_store_path: PathBuf,
@@ -170,6 +170,14 @@ impl CacheCapability {
                     && generation == self.latest_detail_generation.load(Ordering::Acquire))
                 .then_some(publication)
             })
+    }
+
+    pub(crate) fn read_legacy_catalog_cache(
+        &self,
+        name: &str,
+        cap: u64,
+    ) -> io::Result<Option<Vec<u8>>> {
+        self.catalogs.read_bounded(name, cap)
     }
 
     pub(crate) fn read_state_cache(&self, name: &str, cap: usize) -> io::Result<Option<Vec<u8>>> {
@@ -297,7 +305,7 @@ impl CacheCapability {
             root: Arc::new(root),
             root_path,
             icons,
-            _catalogs: catalogs,
+            catalogs,
             catalogs_path,
             screenshots,
             catalog_store_path,

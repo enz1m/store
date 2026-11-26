@@ -18,7 +18,7 @@ pub(crate) fn permissions_invoker_id() -> iced::advanced::widget::Id {
 /// Render app identity, lifecycle actions and responsive metadata groups, omitting unavailable metadata.
 pub(crate) fn view<'a>(store: &'a Store, app_id: &str, width: f32) -> Element<'a, Message> {
     let sp = &store.theme_ref().spacing;
-    let entry = store.app_entry(app_id);
+    let entry = store.detail_entry(app_id);
     let name = entry
         .as_ref()
         .map_or_else(|| app_id.to_owned(), |e| e.name.clone());
@@ -103,17 +103,18 @@ pub(crate) fn view<'a>(store: &'a Store, app_id: &str, width: f32) -> Element<'a
         );
     }
 
-    // ---- description -----------------------------------------------------
-    if let Some(e) = entry.as_ref() {
-        let desc = e.description.trim();
-        if !desc.is_empty() && desc != e.summary.trim() {
-            let desc = desc.to_owned();
-            page = page.push(
-                enz_text(desc)
-                    .size(TextSize::Body)
-                    .color_resolved(|theme| crate::theme::palette(theme).text_muted),
-            );
-        }
+    let summary = entry.as_ref().map_or("", |entry| entry.summary.trim());
+    let description = store
+        .detail_context()
+        .map(|ctx| ctx.description.trim())
+        .filter(|description| !description.is_empty())
+        .or_else(|| entry.as_ref().map(|entry| entry.description.trim()));
+    if let Some(description) = description.filter(|text| !text.is_empty() && *text != summary) {
+        page = page.push(
+            enz_text(description.to_owned())
+                .size(TextSize::Body)
+                .color_resolved(|theme| crate::theme::palette(theme).text_muted),
+        );
     }
 
     if !store.screenshots().is_empty() {

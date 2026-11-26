@@ -1,16 +1,10 @@
 // Detail context fetch and screenshot labels.
 
 // Bundle the per-app Flathub endpoints through cancellable transports.
-#[allow(
-    clippy::too_many_arguments,
-    reason = "Keep captured network capabilities and cancellation identity explicit"
-)]
 pub(crate) fn fetch_detail_context_cancellable(
     cache: Option<&crate::roots::CacheCapability>,
     app_id: &str,
-    origin: &str,
-    scope: Option<MutationScope>,
-    scope_identity: &str,
+    download_remote: Option<(&str, MutationScope)>,
     metadata_authorized: bool,
     generation: u64,
     cancellation: OperationCancellation,
@@ -18,9 +12,7 @@ pub(crate) fn fetch_detail_context_cancellable(
     fetch_detail_context_with_seams(
         cache,
         app_id,
-        origin,
-        scope,
-        scope_identity,
+        download_remote,
         generation,
         metadata_authorized,
         fixture_enabled(),
@@ -52,9 +44,7 @@ pub(crate) fn fetch_publisher_verification_cancellable(
 fn fetch_detail_context_with_seams(
     cache: Option<&crate::roots::CacheCapability>,
     app_id: &str,
-    origin: &str,
-    scope: Option<MutationScope>,
-    scope_identity: &str,
+    download_remote: Option<(&str, MutationScope)>,
     generation: u64,
     metadata_authorized: bool,
     fixture: bool,
@@ -81,6 +71,7 @@ fn fetch_detail_context_with_seams(
     stop_if_cancelled!();
     match flathub_app_info_with_http(app_id, fixture, http, cancellation) {
         Ok(info) => {
+            ctx.description = strip_html(&info.description);
             ctx.license = info.project_license;
             ctx.license_kind = classify_license(&ctx.license);
             ctx.age_rating = format_age_rating(&info.content_rating);
@@ -96,7 +87,8 @@ fn fetch_detail_context_with_seams(
             };
             ctx.is_eol = !eol_msg.is_empty();
             ctx.eol_message = eol_msg;
-            ctx.metadata_state = if ctx.license.is_empty()
+            ctx.metadata_state = if ctx.description.is_empty()
+                && ctx.license.is_empty()
                 && ctx.content_rating.is_empty()
                 && ctx.releases.is_empty()
                 && ctx.urls.is_empty()
@@ -129,9 +121,9 @@ fn fetch_detail_context_with_seams(
     // Download size: try `flatpak remote-info --show-commit` to get
     // the pre-install download size. This works even for uninstalled apps.
     stop_if_cancelled!();
-    if let Some(scope) = scope
+    if let Some((remote, scope)) = download_remote
         && let Ok(size) =
-            fetch_download_size_for_remote_with_executor(app_id, origin, scope, fixture, executor)
+            fetch_download_size_for_remote_with_executor(app_id, remote, scope, fixture, executor)
     {
         ctx.download_size = size;
     }
@@ -145,8 +137,6 @@ fn fetch_detail_context_with_seams(
     let (ratings, ratings_state) = rating_with_http(
         cache,
         app_id,
-        origin,
-        scope_identity,
         generation,
         RATINGS_CACHE_TTL_SECS,
         fixture,
@@ -179,15 +169,9 @@ fn ratings_for(
     lookup_rating(table?, app_id).cloned()
 }
 
-#[allow(
-    clippy::too_many_arguments,
-    reason = "Keep captured network capabilities and cancellation identity explicit"
-)]
 fn rating_with_http(
     cache: Option<&crate::roots::CacheCapability>,
     app_id: &str,
-    origin: &str,
-    scope: &str,
     generation: u64,
     ttl_secs: u64,
     fixture: bool,
@@ -212,18 +196,26 @@ fn rating_with_http(
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |duration| duration.as_secs());
-    let name = detail_ratings_cache_name(app_id, origin, scope);
-    let cached = match cache.zip(name.as_deref()) {
-        Some((cache, name)) => match cache.read_state_cache(name, RATINGS_BODY_MAX_BYTES) {
-            Ok(Some(raw)) => match detail_ratings_from_slice(&raw, app_id, origin, scope, now) {
+    let name = detail_ratings_cache_name(app_id);
+    let cached = match cache {
+        Some(cache) => match cache.read_state_cache(&name, DETAIL_RATINGS_CACHE_MAX_BYTES) {
+            Ok(Some(raw)) => match validated_ratings(
+                &raw, app_id, DETAIL_RATINGS_CACHE_SCHEMA, FLATHUB_REPOSITORY.url, "",
+            ) {
                 Some(cached) => Some(cached),
                 None => return (None, DetailRouteState::Failed),
             },
-            Ok(None) => None,
+            Ok(None) => read_legacy_flathub_ratings(cache, app_id).inspect(|legacy| {
+                let payload = detail_ratings_payload(app_id, legacy.fetched_at, legacy.rating.as_ref());
+                if !payload.is_empty() && !cancellation.is_cancelled() {
+                    let _ = cache.publish_state_cache(&name, generation, &payload);
+                }
+            }),
             Err(_) => return (None, DetailRouteState::Failed),
         },
         None => None,
     };
+    let cached = cached.map(|row| (row.rating, now.saturating_sub(row.fetched_at)));
     if let Some((rating, age_secs)) = cached.as_ref()
         && *age_secs <= ttl_secs
     {
@@ -247,10 +239,10 @@ fn rating_with_http(
     if cancellation.is_cancelled() {
         return (None, DetailRouteState::Failed);
     }
-    if let (Some(cache), Some(name)) = (cache, name.as_deref()) {
-        let payload = detail_ratings_payload(app_id, origin, scope, now, fetched.as_ref());
+    if let Some(cache) = cache {
+        let payload = detail_ratings_payload(app_id, now, fetched.as_ref());
         if !payload.is_empty() && !cancellation.is_cancelled() {
-            match cache.publish_state_cache(name, generation, &payload) {
+            match cache.publish_state_cache(&name, generation, &payload) {
                 Ok(true) => {}
                 Ok(false) | Err(_) => return (fetched, DetailRouteState::Failed),
             }

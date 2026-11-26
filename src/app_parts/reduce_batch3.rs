@@ -180,8 +180,6 @@ impl Store {
         if self.route == Route::Detail
             && let Some(app_id) = self.detail_app_id.clone()
         {
-            self.detail_metadata_authorized =
-                self.detail_metadata_allowed(&app_id, &self.detail_origin);
             let age_secs = self.detail_settled_at.map_or(0, |settled| {
                 self.activity_now_ms().saturating_sub(settled) / 1000
             });
@@ -213,17 +211,7 @@ impl Store {
                 }
             }
             if let Some(generation) = self.next_detail_generation() {
-                tasks.extend(self.detail_open_tasks(
-                    self.cache_cap(),
-                    app_id,
-                    self.detail_origin.clone(),
-                    self.detail_scope,
-                    self.detail_scope_identity.clone(),
-                    self.detail_metadata_authorized,
-                    generation,
-                    self.detail_cancellation.clone(),
-                    self.detail_owner.dispatcher(),
-                ));
+                tasks.extend(self.detail_open_tasks(app_id, generation));
             }
         }
         Task::batch(tasks)
@@ -405,6 +393,7 @@ impl Store {
                     self.enrich_installed();
                     if self.search_popup_open {
                         return Task::batch([
+                            self.resume_catalog_detail(),
                             self.resume_detail_permission_read(),
                             self.refresh_search_popup(),
                             self.pump_deferred_owned_read(),
@@ -417,6 +406,10 @@ impl Store {
             }
             permission_read = self.resume_detail_permission_read();
         }
-        Task::batch([permission_read, self.pump_deferred_owned_read()])
+        Task::batch([
+            self.resume_catalog_detail(),
+            permission_read,
+            self.pump_deferred_owned_read(),
+        ])
     }
 }

@@ -226,3 +226,65 @@ fn an_unknown_verification_is_never_admitted_by_a_verified_only_filter() {
 }
 
 // A failed update read remains unknown rather than implying zero updates.
+
+#[test]
+fn deployed_flathub_metadata_follows_the_repository_url_in_its_own_installation() {
+    use crate::services::{FLATHUB_REPOSITORY, InstallScope, RemoteInfo};
+
+    let mut store = browse_store();
+    let id = "org.test.Calculator";
+    let mut listing = app(id, "Calculator");
+    listing.description = "Public Flathub description".into();
+    listing.icon_image = Some(crate::bounded_image::RenderImage::TrustedBundled(
+        crate::bounded_image::TrustedBundledPath::new("shots/desktop-light.png"),
+    ));
+    store.catalog.popular = vec![listing];
+    let flathub = AppEntry {
+        origin: "community".into(),
+        installed: true,
+        install_scope: InstallScope::System,
+        ..app(id, "Calculator")
+    };
+    let other = AppEntry {
+        origin: FLATHUB_REPOSITORY.origin.into(),
+        install_scope: InstallScope::User,
+        ..flathub.clone()
+    };
+    store.installed = vec![other.clone(), flathub.clone()];
+    store.remotes.clear();
+    let _ = store.update(Message::open_app_detail(&flathub));
+    assert!(!store.detail_metadata_authorized);
+
+    let _ = store.update(Message::OwnedRemotesLoaded {
+        request: store.remotes_read_request,
+        result: Ok(crate::services::RepositoryInventory {
+            remotes: vec![
+                RemoteInfo {
+                    name: flathub.origin.clone(),
+                    url: FLATHUB_REPOSITORY.url.trim_end_matches('/').into(),
+                    options: "system".into(),
+                    ..Default::default()
+                },
+                RemoteInfo {
+                    name: other.origin.clone(),
+                    url: "https://example.org/repo/".into(),
+                    options: "user".into(),
+                    ..Default::default()
+                },
+            ],
+            enzimos_apps: None,
+        }),
+    });
+    assert!(store.detail_metadata_authorized);
+    let detailed = store.detail_entry(id).expect("system copy details");
+    assert_eq!(detailed.origin, flathub.origin);
+    assert_eq!(detailed.description, "Public Flathub description");
+    assert!(detailed.icon_image.is_some());
+
+    let _ = store.update(Message::open_app_detail(&other));
+    assert!(!store.detail_metadata_authorized);
+    let detailed = store.detail_entry(id).expect("user copy details");
+    assert_eq!(detailed.origin, other.origin);
+    assert!(detailed.description.is_empty());
+    assert!(detailed.icon_image.is_none());
+}

@@ -50,6 +50,7 @@ pub(crate) fn hash_entries(entries: &[AppEntry]) -> u64 {
             update_available,
             verified,
             from_enzimos,
+            from_flathub,
             publisher,
             description,
             tags,
@@ -78,6 +79,7 @@ pub(crate) fn hash_entries(entries: &[AppEntry]) -> u64 {
         update_available.hash(&mut h);
         verified.hash(&mut h);
         from_enzimos.hash(&mut h);
+        from_flathub.hash(&mut h);
         publisher.hash(&mut h);
         description.hash(&mut h);
         tags.hash(&mut h);
@@ -147,13 +149,18 @@ impl RowProjection {
     /// The projection for `store`'s current route.
     pub(crate) fn compute(store: &Store) -> Self {
         let rows = match store.route {
-            Route::Library => crate::model::library_rows(
-                &store.installed,
-                &store.library_query,
-                store.library_sort,
-                // The row set tracks app identities; the reported scope determines the control.
-                &store.update_ids(),
-            ),
+            Route::Library => {
+                let mut rows = crate::model::library_rows(
+                    &store.installed,
+                    &store.library_query,
+                    store.library_sort,
+                    &store.update_ids(),
+                );
+                for row in &mut rows {
+                    store.enrich_flathub_deployment(row);
+                }
+                rows
+            }
             // Borrow the complete catalogue and clone only matching rows.
             Route::Search => crate::model::search_rows_from(
                 store.catalog_candidates().into_iter(),

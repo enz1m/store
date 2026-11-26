@@ -171,6 +171,18 @@ pub(crate) const ENZIMOS_REPOSITORY: CatalogRepository = CatalogRepository {
 const KNOWN_CATALOG_REPOSITORIES: &[CatalogRepository] =
     &[FLATHUB_REPOSITORY, ENZIMOS_REPOSITORY];
 
+pub(crate) fn deployment_matches_catalog(
+    remote: &RemoteInfo,
+    name: &str,
+    scope: &InstallScope,
+    catalogue: CatalogRepository,
+) -> bool {
+    *scope != InstallScope::Unknown
+        && remote.name == name
+        && InstallScope::from_remote_options(&remote.options) == *scope
+        && matches_catalog_origin(remote, catalogue.origin)
+}
+
 pub(crate) fn matches_catalog_origin(remote: &RemoteInfo, origin: &str) -> bool {
     let Some(repository) = KNOWN_CATALOG_REPOSITORIES
         .iter()

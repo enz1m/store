@@ -18,6 +18,51 @@ impl Store {
         self.catalog_entry(app_id).cloned()
     }
 
+    pub(crate) fn detail_entry(&self, app_id: &str) -> Option<AppEntry> {
+        if self.detail_install_scope != services::InstallScope::Unknown
+            && let Some(entry) = self.installed.iter().find(|entry| {
+                entry.id == app_id
+                    && entry.origin == self.detail_origin
+                    && entry.install_scope == self.detail_install_scope
+            })
+        {
+            let mut entry = entry.clone();
+            self.enrich_flathub_deployment(&mut entry);
+            return Some(entry);
+        }
+        match self.detail_origin.as_str() {
+            origin if origin == services::FLATHUB_REPOSITORY.origin => {
+                self.flathub_catalog_entry(app_id)
+            }
+            origin if origin == services::ENZIMOS_REPOSITORY.origin => {
+                self.enzimos_apps.iter().find(|entry| entry.id == app_id)
+            }
+            _ => None,
+        }
+        .cloned()
+    }
+
+    pub(crate) fn enrich_flathub_deployment(&self, entry: &mut AppEntry) {
+        if let Some(catalogue) = self.flathub_metadata_for(entry) {
+            if entry.icon_image.is_none() {
+                entry.icon_image = catalogue.icon_image.clone();
+            }
+            if entry.summary.is_empty() {
+                entry.summary.clone_from(&catalogue.summary);
+            }
+            entry.description.clone_from(&catalogue.description);
+            entry.publisher.clone_from(&catalogue.publisher);
+        }
+    }
+
+    fn flathub_metadata_for(&self, entry: &AppEntry) -> Option<&AppEntry> {
+        if entry.from_flathub {
+            self.flathub_catalog_entry(&entry.id)
+        } else {
+            None
+        }
+    }
+
     // Prefer the indexed catalogue; rail-only entries remain a fallback.
     pub(crate) fn catalog_entry(&self, app_id: &str) -> Option<&AppEntry> {
         self.enzimos_apps
@@ -83,15 +128,22 @@ impl Store {
         ])
     }
 
-    // A detail route can open before the catalogue establishes its public ID.
-    // Reopen it once authorized; the detail generation retires earlier replies.
+    // Retire earlier replies when the public catalogue or deployment source changes eligibility.
     pub(crate) fn resume_catalog_detail(&mut self) -> Task<Message> {
         if self.route == Route::Detail
-            && !self.detail_metadata_authorized
             && let Some(app_id) = self.detail_app_id.clone()
-            && self.detail_metadata_allowed(&app_id, &self.detail_origin)
+            && self.detail_metadata_authorized
+                != self.detail_metadata_allowed(
+                    &app_id,
+                    &self.detail_origin,
+                    &self.detail_install_scope,
+                )
         {
-            return self.batch1_open_app_detail(app_id);
+            return self.batch1_open_app_detail_from(
+                app_id,
+                self.detail_origin.clone(),
+                self.detail_install_scope.clone(),
+            );
         }
         Task::none()
     }
@@ -184,10 +236,13 @@ impl Store {
     // An operation carries only an id and a name, and `app_entry` would clone
     // a whole entry, including its decoded image, per row per frame.
     pub(crate) fn app_icon_image(&self, app_id: &str) -> Option<&bounded_image::RenderImage> {
-        self.installed
-            .iter()
-            .find(|e| e.id == app_id)
-            .or_else(|| self.catalog_entry(app_id))
+        if let Some(installed) = self.installed.iter().find(|entry| entry.id == app_id) {
+            return installed.icon_image.as_ref().or_else(|| {
+                self.flathub_metadata_for(installed)
+                    .and_then(|entry| entry.icon_image.as_ref())
+            });
+        }
+        self.catalog_entry(app_id)
             .and_then(|entry| entry.icon_image.as_ref())
     }
 }

@@ -31,6 +31,8 @@ pub(crate) struct AppEntry {
     /// Source established by the configured, signature-checking enzim Apps remote.
     #[serde(skip)]
     pub from_enzimos: bool,
+    #[serde(skip)]
+    pub from_flathub: bool,
     /// Optional publisher / developer name; renders under the app title on the
     /// detail page.
     pub publisher: String,

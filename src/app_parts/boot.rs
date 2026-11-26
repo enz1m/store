@@ -149,7 +149,7 @@ impl Store {
             detail_app_id: boot_detail.clone(),
             detail_origin: "flathub".to_owned(),
             detail_scope: None,
-            detail_scope_identity: "unknown".to_owned(),
+            detail_install_scope: services::InstallScope::Unknown,
             detail_metadata_authorized: false,
             detail_cancellation: services::OperationCancellation::default(),
             detail_permissions: PermissionRead::Loading,
@@ -354,17 +354,7 @@ impl Store {
                     .cache_cap()
                     .is_none_or(|cache| cache.admit_detail_generation(store.detail_generation));
                 if cache_admitted && store.detail_generation != 0 {
-                    tasks.extend(store.detail_open_tasks(
-                        store.cache_cap(),
-                        app_id,
-                        store.detail_origin.clone(),
-                        store.detail_scope,
-                        store.detail_scope_identity.clone(),
-                        store.detail_metadata_authorized,
-                        store.detail_generation,
-                        store.detail_cancellation.clone(),
-                        store.detail_owner.dispatcher(),
-                    ));
+                    tasks.extend(store.detail_open_tasks(app_id, store.detail_generation));
                 } else {
                     store.refuse_detail_generation();
                     store.detail_permissions = PermissionRead::Unavailable;

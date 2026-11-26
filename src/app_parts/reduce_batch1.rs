@@ -77,30 +77,19 @@ impl Store {
         } else {
             origin
         };
-        let (scope, scope_identity) = match install_scope {
+        let scope = match install_scope {
             services::InstallScope::Unknown => {
-                let scope =
-                    services::install_authorization(&origin, &self.remotes_load, &self.remotes)
-                        .scope();
-                (
-                    scope,
-                    scope
-                        .map_or("unknown", services::MutationScope::option)
-                        .to_owned(),
-                )
+                services::install_authorization(&origin, &self.remotes_load, &self.remotes).scope()
             }
-            services::InstallScope::User => {
-                (Some(services::MutationScope::USER), "user".to_owned())
-            }
-            services::InstallScope::System => (None, "system".to_owned()),
-            services::InstallScope::Named(name) => (None, format!("named:{name}")),
+            services::InstallScope::User => Some(services::MutationScope::USER),
+            services::InstallScope::System | services::InstallScope::Named(_) => None,
         };
-        let metadata_authorized = self.detail_metadata_allowed(&app_id, &origin);
+        let metadata_authorized = self.detail_metadata_allowed(&app_id, &origin, &install_scope);
         self.route = Route::Detail;
         self.detail_app_id = Some(app_id.clone());
         self.detail_origin = origin.clone();
         self.detail_scope = scope;
-        self.detail_scope_identity = scope_identity.clone();
+        self.detail_install_scope = install_scope;
         self.detail_metadata_authorized = metadata_authorized;
 
         self.ratings_breakdown_open = false;
@@ -133,17 +122,7 @@ impl Store {
             }
             return Task::batch(tasks);
         };
-        let mut tasks = self.detail_open_tasks(
-            self.cache_cap(),
-            app_id,
-            origin,
-            scope,
-            scope_identity,
-            metadata_authorized,
-            generation,
-            self.detail_cancellation.clone(),
-            self.detail_owner.dispatcher(),
-        );
+        let mut tasks = self.detail_open_tasks(app_id, generation);
         // The detail scrollable keeps widget-owned state across route
         // swaps. Reset it so app B never inherits app A's deep offset.
         tasks.push(Self::scroll_to_top_operation(DETAIL_SCROLL_ID));

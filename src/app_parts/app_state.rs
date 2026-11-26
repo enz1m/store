@@ -38,7 +38,7 @@ pub(crate) struct Store {
     pub(crate) detail_app_id: Option<String>,
     pub(crate) detail_origin: String,
     pub(crate) detail_scope: Option<services::MutationScope>,
-    pub(crate) detail_scope_identity: String,
+    pub(crate) detail_install_scope: services::InstallScope,
     pub(crate) detail_metadata_authorized: bool,
     pub(crate) detail_cancellation: services::OperationCancellation,
 

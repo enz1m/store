@@ -22,6 +22,7 @@ pub(crate) struct DetailContext {
     pub metadata_state: DetailRouteState,
     pub stats_state: DetailRouteState,
     pub ratings_state: DetailRouteState,
+    pub description: String,
     /// SPDX license expression from `project_license`; empty when unknown.
     pub license: String,
     /// Classification of `license`: FOSS / Proprietary / Unknown.
@@ -62,9 +63,7 @@ pub(crate) struct DetailContext {
     /// `FlathubRelease.formatted_date()`). Empty when the app has
     /// no releases metadata.
     pub last_updated: String,
-    /// The selected app's validated ODRS histogram. Its disk entry is keyed by
-    /// app, origin, installation scope, endpoint, and schema; `None` is only
-    /// meaningful together with [`Self::ratings_state`].
+    /// The selected app's ODRS histogram, cached by app ID and catalogue URL.
     pub ratings: Option<RatingsCounts>,
     /// How many screenshots the appstream endpoint reported for this app.
     pub screenshot_count: usize,
