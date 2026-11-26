@@ -175,7 +175,7 @@ const MESSAGES: &[(&str, &str)] = &[
     ("Hide rating breakdown", "app-hide-rating-breakdown-f6eca3"),
     ("Homepage", "app-homepage-9e3391"),
     ("In progress", "app-in-progress-c1f88e"),
-    ("Included with enzimOS", "app-included-with-enzimos"),
+    ("Installed system-wide", "app-installed-system-wide"),
     ("Install", "app-install-569ca4"),
     ("Install statistics", "app-install-statistics-f5c918"),
     ("Install {name}", "app-install-name-15d27e"),

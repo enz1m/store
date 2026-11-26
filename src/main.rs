@@ -248,8 +248,7 @@ impl Store {
         self.installed.iter().any(|e| e.id == app_id)
     }
 
-    /// enzimOS ships the app natively under the same id, so a Flatpak copy
-    /// would be a second app with the same name and desktop entry.
+    /// Whether a system desktop entry already provides this app ID without a Flatpak deployment.
     pub(crate) fn is_system_app(&self, app_id: &str) -> bool {
         !self.is_installed(app_id) && system_apps().iter().any(|id| id == app_id)
     }

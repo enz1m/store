@@ -626,7 +626,7 @@ fn header_actions<'a>(
     } else if store.is_system_app(app_id) {
         notes.push(super::super::chrome::icon_chip(
             "circle-check",
-            crate::i18n::label("Included with enzimOS"),
+            crate::i18n::label("Installed system-wide"),
             super::super::chrome::ChipTone::Success,
         ));
     } else {

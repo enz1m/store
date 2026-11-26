@@ -57,6 +57,12 @@ Installations are explicit user actions. Opening Store or its screenshots instal
 nothing. System repositories remain host-managed; read-only operations are
 identified in the interface instead of being silently redirected to user scope.
 
+Store shows **Installed system-wide** when an app ID matches a desktop entry
+under `/usr/share/applications` and there is no installed Flatpak for that ID.
+This covers native apps installed with pacman, including apps you added
+yourself. Package groups and pacman's install reason do not establish what
+shipped on a particular system.
+
 Shared enzUI theme settings apply live. Translations are under `assets/locales`;
 locale coverage varies.
 
