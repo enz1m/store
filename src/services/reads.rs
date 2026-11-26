@@ -67,24 +67,20 @@ fn list_installed_with_executor(
     Ok(apps)
 }
 
-#[derive(Clone, Debug)]
-pub(crate) struct RepositoryInventory {
-    pub remotes: Vec<RemoteInfo>,
-    pub enzimos_apps: Option<Vec<AppEntry>>,
+pub(crate) fn list_remotes_cancellable(
+    cancellation: OperationCancellation,
+) -> Result<Vec<RemoteInfo>, String> {
+    let executor = ProcessFlatpakExecutor::cancellable(cancellation);
+    list_remotes_with_executor(fixture_enabled(), &executor)
 }
 
-pub(crate) fn list_remotes_cancellable(
+pub(crate) fn list_enzimos_apps_cancellable(
+    remotes: &[RemoteInfo],
     cache: Option<&crate::roots::CacheCapability>,
     cancellation: OperationCancellation,
-) -> Result<RepositoryInventory, String> {
+) -> Result<Vec<AppEntry>, String> {
     let executor = ProcessFlatpakExecutor::cancellable(cancellation.clone());
-    let fixture = fixture_enabled();
-    let remotes = list_remotes_with_executor(fixture, &executor)?;
-    let enzimos_apps = list_enzimos_apps(&executor, &remotes, cache, &cancellation).ok();
-    Ok(RepositoryInventory {
-        remotes,
-        enzimos_apps,
-    })
+    list_enzimos_apps(&executor, remotes, cache, &cancellation)
 }
 
 fn list_enzimos_apps(

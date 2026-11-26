@@ -49,7 +49,7 @@ fn offline_home_and_detail_use_the_installed_apps_repository() {
 
 #[test]
 fn search_promotes_verified_enzimos_apps_when_the_catalogue_arrives() {
-    use crate::services::{ENZIMOS_REPOSITORY, RemoteInfo, RepositoryInventory};
+    use crate::services::{ENZIMOS_REPOSITORY, RemoteInfo, RemoteLoad};
 
     let mut store = browse_store();
     let mut external = app("org.test.Calculator", "Calculator");
@@ -67,15 +67,32 @@ fn search_promotes_verified_enzimos_apps_when_the_catalogue_arrives() {
     };
     let _ = store.update(Message::OwnedRemotesLoaded {
         request: store.remotes_read_request,
-        result: Ok(RepositoryInventory {
-            remotes: vec![RemoteInfo {
-                name: ENZIMOS_REPOSITORY.origin.into(),
-                url: ENZIMOS_REPOSITORY.url.into(),
-                options: "user".into(),
-                ..Default::default()
-            }],
-            enzimos_apps: Some(vec![official]),
-        }),
+        result: Ok(vec![RemoteInfo {
+            name: ENZIMOS_REPOSITORY.origin.into(),
+            url: ENZIMOS_REPOSITORY.url.into(),
+            options: "user".into(),
+            ..Default::default()
+        }]),
+    });
+    assert_eq!(store.remotes_load, RemoteLoad::Loaded);
+    assert!(store.enzimos_apps.is_empty());
+    assert!(
+        store
+            .repository_answer()
+            .authorization(ENZIMOS_REPOSITORY.origin)
+            .scope()
+            .is_some()
+    );
+
+    let request = store.remotes_read_request;
+    let _ = store.update(Message::EnzimosCatalogueLoaded {
+        request: request.wrapping_sub(1),
+        apps: Some(vec![official.clone()]),
+    });
+    assert!(store.enzimos_apps.is_empty());
+    let _ = store.update(Message::EnzimosCatalogueLoaded {
+        request,
+        apps: Some(vec![official]),
     });
     assert_eq!(store.rows()[0].id, "org.enzimos.Calculator");
     assert_eq!(store.search_popup_results[0].id, "org.enzimos.Calculator");
@@ -257,23 +274,20 @@ fn deployed_flathub_metadata_follows_the_repository_url_in_its_own_installation(
 
     let _ = store.update(Message::OwnedRemotesLoaded {
         request: store.remotes_read_request,
-        result: Ok(crate::services::RepositoryInventory {
-            remotes: vec![
-                RemoteInfo {
-                    name: flathub.origin.clone(),
-                    url: FLATHUB_REPOSITORY.url.trim_end_matches('/').into(),
-                    options: "system".into(),
-                    ..Default::default()
-                },
-                RemoteInfo {
-                    name: other.origin.clone(),
-                    url: "https://example.org/repo/".into(),
-                    options: "user".into(),
-                    ..Default::default()
-                },
-            ],
-            enzimos_apps: None,
-        }),
+        result: Ok(vec![
+            RemoteInfo {
+                name: flathub.origin.clone(),
+                url: FLATHUB_REPOSITORY.url.trim_end_matches('/').into(),
+                options: "system".into(),
+                ..Default::default()
+            },
+            RemoteInfo {
+                name: other.origin.clone(),
+                url: "https://example.org/repo/".into(),
+                options: "user".into(),
+                ..Default::default()
+            },
+        ]),
     });
     assert!(store.detail_metadata_authorized);
     let detailed = store.detail_entry(id).expect("system copy details");

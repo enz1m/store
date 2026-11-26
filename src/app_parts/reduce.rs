@@ -284,6 +284,9 @@ impl Store {
             Message::RemotesReadTerminated { request, terminal } => {
                 self.batch4_remotes_read_terminated(request, terminal)
             }
+            Message::EnzimosCatalogueLoaded { request, apps } => {
+                self.batch3_enzimos_catalogue_loaded(request, apps)
+            }
 
             Message::CatalogCacheLoaded { generation, phase } => {
                 self.batch4_catalog_cache_loaded(generation, phase)

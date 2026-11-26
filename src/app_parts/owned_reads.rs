@@ -79,19 +79,14 @@ impl Store {
                 move |result| Message::OwnedInstalledLoaded { request, result },
                 move |terminal| Message::InstalledReadTerminated { request, terminal },
             ),
-            OwnedReadIntent::Remotes { request } => {
-                let cache = self.cache_cap();
-                flatpak::owned_read_task(
-                    dispatcher,
-                    request,
-                    services::OperationCancellation::default(),
-                    move |cancellation| {
-                        services::list_remotes_cancellable(cache.as_ref(), cancellation)
-                    },
-                    move |result| Message::OwnedRemotesLoaded { request, result },
-                    move |terminal| Message::RemotesReadTerminated { request, terminal },
-                )
-            }
+            OwnedReadIntent::Remotes { request } => flatpak::owned_read_task(
+                dispatcher,
+                request,
+                services::OperationCancellation::default(),
+                services::list_remotes_cancellable,
+                move |result| Message::OwnedRemotesLoaded { request, result },
+                move |terminal| Message::RemotesReadTerminated { request, terminal },
+            ),
             OwnedReadIntent::Updates {
                 request,
                 generation,
@@ -167,6 +162,27 @@ impl Store {
         self.remotes_read_request = request;
         self.remotes_load = services::RemoteLoad::Loading;
         self.dispatch_owned_read(OwnedReadIntent::Remotes { request })
+    }
+
+    pub(crate) fn read_enzimos_catalogue(&self, request: u64) -> Task<Message> {
+        let cache = self.cache_cap();
+        let remotes = self.remotes.clone();
+        flatpak::owned_read_task(
+            self.read_owner.dispatcher(),
+            request,
+            services::OperationCancellation::default(),
+            move |cancellation| {
+                services::list_enzimos_apps_cancellable(&remotes, cache.as_ref(), cancellation)
+            },
+            move |result| Message::EnzimosCatalogueLoaded {
+                request,
+                apps: result.ok(),
+            },
+            move |_| Message::EnzimosCatalogueLoaded {
+                request,
+                apps: None,
+            },
+        )
     }
 
     // Move the editable model to Loading and dispatch a bounded build for the

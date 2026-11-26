@@ -378,38 +378,51 @@ impl Store {
     pub(crate) fn batch3_owned_remotes_loaded(
         &mut self,
         request: u64,
-        result: Result<services::RepositoryInventory, String>,
+        result: Result<Vec<services::RemoteInfo>, String>,
     ) -> Task<Message> {
         self.deferred_owned_reads.retry_settled(request);
-        let mut permission_read = Task::none();
-        if request == self.remotes_read_request {
-            match result {
-                Ok(inventory) => {
-                    self.remotes = inventory.remotes;
-                    self.remotes_load = services::RemoteLoad::Loaded;
-                    if let Some(apps) = inventory.enzimos_apps {
-                        self.enzimos_apps = apps;
-                    }
-                    self.enrich_installed();
-                    if self.search_popup_open {
-                        return Task::batch([
-                            self.resume_catalog_detail(),
-                            self.resume_detail_permission_read(),
-                            self.refresh_search_popup(),
-                            self.pump_deferred_owned_read(),
-                        ]);
-                    }
-                }
-                Err(error) => {
-                    self.remotes_load = services::RemoteLoad::Failed(error);
+        if request != self.remotes_read_request {
+            return self.pump_deferred_owned_read();
+        }
+        let mut tasks = Vec::new();
+        match result {
+            Ok(remotes) => {
+                self.remotes = remotes;
+                self.remotes_load = services::RemoteLoad::Loaded;
+                self.enrich_installed();
+                tasks.push(self.read_enzimos_catalogue(request));
+                tasks.push(self.resume_catalog_detail());
+                if self.search_popup_open {
+                    tasks.push(self.refresh_search_popup());
                 }
             }
-            permission_read = self.resume_detail_permission_read();
+            Err(error) => {
+                self.remotes_load = services::RemoteLoad::Failed(error);
+            }
         }
-        Task::batch([
-            self.resume_catalog_detail(),
-            permission_read,
-            self.pump_deferred_owned_read(),
-        ])
+        tasks.push(self.resume_detail_permission_read());
+        tasks.push(self.pump_deferred_owned_read());
+        Task::batch(tasks)
+    }
+
+    pub(crate) fn batch3_enzimos_catalogue_loaded(
+        &mut self,
+        request: u64,
+        apps: Option<Vec<AppEntry>>,
+    ) -> Task<Message> {
+        if request != self.remotes_read_request || self.remotes_load != services::RemoteLoad::Loaded
+        {
+            return Task::none();
+        }
+        let Some(apps) = apps else {
+            return Task::none();
+        };
+        self.enzimos_apps = apps;
+        self.enrich_installed();
+        if self.search_popup_open {
+            self.refresh_search_popup()
+        } else {
+            Task::none()
+        }
     }
 }

@@ -269,11 +269,15 @@ pub(crate) enum Message {
 
     OwnedRemotesLoaded {
         request: u64,
-        result: Result<services::RepositoryInventory, String>,
+        result: Result<Vec<services::RemoteInfo>, String>,
     },
     RemotesReadTerminated {
         request: u64,
         terminal: flatpak::ReadTaskError,
+    },
+    EnzimosCatalogueLoaded {
+        request: u64,
+        apps: Option<Vec<AppEntry>>,
     },
 
     /// The persisted cache settled off-thread on the catalogue pool, carrying
@@ -503,6 +507,7 @@ impl enzui_core::crash_report::MessageKind for Message {
             Self::UpdateCheckRetryRequested => "UpdateCheckRetryRequested",
 
             Self::OwnedRemotesLoaded { .. } => "RemotesLoaded",
+            Self::EnzimosCatalogueLoaded { .. } => "EnzimosCatalogueLoaded",
             Self::RemotesReadTerminated { .. } => "RemotesReadTerminated",
 
             Self::CatalogCacheLoaded { .. } => "CatalogCacheLoaded",
