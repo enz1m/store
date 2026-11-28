@@ -1,7 +1,7 @@
 [package]
 repository = "https://github.com/enz1m/store"
 name = "enzimos-store"
-version = "0.1.0"
+version = "0.1.3"
 authors = ["enzUI contributors"]
 edition = "2024"
 publish = false
@@ -18,16 +18,16 @@ center = ["dep:enzui-agent"]
 
 
 [dependencies]
-enzui-activity = { features = ["operation-center"], git = "https://github.com/enz1m/enzui.git", rev = "46f267ecf6642423a7d716488200a5ceb8726655" }
-enzui-services = { git = "https://github.com/enz1m/enzui.git", rev = "46f267ecf6642423a7d716488200a5ceb8726655" }
-iced = { default-features = false, features = ["wgpu", "tiny-skia", "crisp", "web-colors", "thread-pool", "linux-theme-detection", "wayland", "svg", "image", "a11y", "tokio"], git = "https://github.com/enz1m/enzim-iced.git", rev = "838066d2e7373e87cfb42e62cca5a1dc9625b5f9" }
-iced_renderer = { default-features = false, git = "https://github.com/enz1m/enzim-iced.git", rev = "838066d2e7373e87cfb42e62cca5a1dc9625b5f9" }
-enzui-core = { features = ["accesskit"], git = "https://github.com/enz1m/enzui.git", rev = "46f267ecf6642423a7d716488200a5ceb8726655" }
-enzui-resources = { git = "https://github.com/enz1m/enzui.git", rev = "46f267ecf6642423a7d716488200a5ceb8726655" }
-enzui-theme = { git = "https://github.com/enz1m/enzui.git", rev = "46f267ecf6642423a7d716488200a5ceb8726655" }
-enzui-widgets = { features = ["portal-dbus", "application-dbus"], git = "https://github.com/enz1m/enzui.git", rev = "46f267ecf6642423a7d716488200a5ceb8726655" }
-enzui-parent-lease = { git = "https://github.com/enz1m/enzui.git", rev = "46f267ecf6642423a7d716488200a5ceb8726655" }
-enzui-agent = { features = ["iced-consumer"], optional = true, git = "https://github.com/enz1m/enzui.git", rev = "46f267ecf6642423a7d716488200a5ceb8726655" }
+enzui-activity = { features = ["operation-center"], git = "https://github.com/enz1m/enzui.git", rev = "46648f263fbfd31bb2a6327c4dda4845f8d5af97" }
+enzui-services = { git = "https://github.com/enz1m/enzui.git", rev = "46648f263fbfd31bb2a6327c4dda4845f8d5af97" }
+iced = { default-features = false, features = ["wgpu", "tiny-skia", "crisp", "web-colors", "thread-pool", "linux-theme-detection", "wayland", "svg", "image", "a11y", "tokio"], git = "https://github.com/enz1m/enzim-iced.git", rev = "58b66f27b82d30cb0fd09db524307b6a0e099279" }
+iced_renderer = { default-features = false, git = "https://github.com/enz1m/enzim-iced.git", rev = "58b66f27b82d30cb0fd09db524307b6a0e099279" }
+enzui-core = { features = ["accesskit"], git = "https://github.com/enz1m/enzui.git", rev = "46648f263fbfd31bb2a6327c4dda4845f8d5af97" }
+enzui-resources = { git = "https://github.com/enz1m/enzui.git", rev = "46648f263fbfd31bb2a6327c4dda4845f8d5af97" }
+enzui-theme = { git = "https://github.com/enz1m/enzui.git", rev = "46648f263fbfd31bb2a6327c4dda4845f8d5af97" }
+enzui-widgets = { features = ["portal-dbus", "application-dbus"], git = "https://github.com/enz1m/enzui.git", rev = "46648f263fbfd31bb2a6327c4dda4845f8d5af97" }
+enzui-parent-lease = { git = "https://github.com/enz1m/enzui.git", rev = "46648f263fbfd31bb2a6327c4dda4845f8d5af97" }
+enzui-agent = { features = ["iced-consumer"], optional = true, git = "https://github.com/enz1m/enzui.git", rev = "46648f263fbfd31bb2a6327c4dda4845f8d5af97" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 rustix = { version = "1.1", features = ["fs", "process"] }
@@ -35,10 +35,10 @@ rustix = { version = "1.1", features = ["fs", "process"] }
 resvg = { version = "0.45", default-features = false }
 
 [target.'cfg(target_os = "linux")'.dependencies]
-enzui-wayland = { git = "https://github.com/enz1m/enzui.git", rev = "46f267ecf6642423a7d716488200a5ceb8726655" }
+enzui-wayland = { git = "https://github.com/enz1m/enzui.git", rev = "46648f263fbfd31bb2a6327c4dda4845f8d5af97" }
 
 [dev-dependencies]
-iced_test = { git = "https://github.com/enz1m/enzim-iced.git", rev = "838066d2e7373e87cfb42e62cca5a1dc9625b5f9" }
+iced_test = { git = "https://github.com/enz1m/enzim-iced.git", rev = "58b66f27b82d30cb0fd09db524307b6a0e099279" }
 
 [patch.crates-io]
 zbus_macros = { git = "https://github.com/enz1m/enzim-zbus.git", rev = "e182645b56d15e637bb6c8144f99ebfa7f900716" }
